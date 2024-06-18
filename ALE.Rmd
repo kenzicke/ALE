@@ -1,6 +1,6 @@
 ---
 title: "ALE_Experiment"
-author: "Kenzie Cooke"
+author: "Kenzie  Cooke"
 date: "2024-06-16"
 output: html_document
 ---
