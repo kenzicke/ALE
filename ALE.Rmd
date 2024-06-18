@@ -1,0 +1,265 @@
+---
+title: "ALE_Experiment"
+author: "Kenzie Cooke"
+date: "2024-06-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+## Alkalinity and Linear Extension Experient
+
+```{r libraries}
+library(ggplot2)
+library(dplyr)
+library(nlstools)
+library(seacarb)
+library(emmeans)
+
+```
+
+### Import Data
+*bw data normalized to initial mass and not including density corrections
+
+```{r import, echo=FALSE}
+#import growth data 
+bw <- read.csv('data/ALEbw6.16.csv', stringsAsFactors = TRUE)
+le <- read.csv('data/ALE_le6.16.csv', stringsAsFactors = TRUE)
+```
+
+### Mixed linear models for total calcification by TA
+1. BW from t0 to t3, growth ~ ta, 1|geno, 1|tank
+
+```{r}
+#attempting to fix "error in initializerPtr(): function 'chlomod_factor_ldetA' not provided by package 'Matrix'
+
+#tools::package_dependencies("Matrix", which = "LinkingTo", reverse = TRUE)[[1L]]
+
+#utils::install.packages("lme4", type = "source")
+
+#load packages
+library(lme4)
+
+#BW mixed linear model 1
+LM_BWTA1 <- lmer(gr_t0t3 ~ ta + (1|geno) + (1|tank), data = bw)
+summary(LM_BWTA1)
+anova(LM_BWTA1)
+#ranova(LM_BWTA1)
+#step(LM_BWTA1)
+```
+2. BW from t1 to t3
+
+```{r}
+#BW mixed linear model 2
+LM_BWTA2 <- lmer(gr_t1t3 ~ ta + (1|geno) + (1|tank), data = bw)
+summary(LM_BWTA2)
+anova(LM_BWTA2)
+```
+#### By Treatment 
+1. BW from t0 to t3
+```{r}
+#BW mixed linear model by treatment 
+LM_BWtreat1 <- lmer(gr_t0t3 ~ treatment + (1|geno) + (1|tank), data = bw)
+summary(LM_BWtreat1)
+anova(LM_BWtreat1)
+```
+2. BW from t1 to t3
+```{r}
+#BW mixed linear model 1
+LM_BWtreat2 <- lmer(gr_t1t3 ~ treatment + (1|geno) + (1|tank), data = bw)
+summary(LM_BWtreat2)
+anova(LM_BWtreat2)
+```
+
+
+### Mixed linear models for linear extension by TA
+1. LE (leios scanning)
+
+```{r}
+#mixed linear model 1
+LM_LETA1 <- lmer(gr_leios ~ ta + (1|geno) + (1|tank), data = le)
+summary(LM_LETA1)
+anova(LM_LETA1)
+```
+
+2. LE from t0 to t3 using ImageJ
+
+```{r}
+#mixed linear model 2
+LM_LETA2 <- lmer(gr_t0t3 ~ ta + (1|geno) + (1|tank), data = le)
+summary(LM_LETA2)
+anova(LM_LETA2)
+```
+
+3. LE from t1 to t3 using Image J
+
+```{r}
+#mixed linear model 3
+LM_LETA3 <- lmer(gr_t1t3 ~ ta + (1|geno) + (1|tank), data = le)
+summary(LM_LETA3)
+anova(LM_LETA3)
+```
+#### By Treatment 
+1. LE by leios
+```{r}
+#mixed linear model 1
+LM_LEtreat1 <- lmer(gr_leios ~ treatment + (1|geno) + (1|tank), data = le)
+summary(LM_LEtreat1)
+anova(LM_LEtreat1)
+```
+
+2. LE t0 to t3 Image J 
+```{r}
+#mixed linear model 2
+LM_LEtreat2 <- lmer(gr_t0t3 ~ treatment + (1|geno) + (1|tank), data = le)
+summary(LM_LEtreat2)
+anova(LM_LEtreat2)
+```
+
+3. LE t1 to t3 Image J 
+```{r}
+#mixed linear model 3
+LM_LEtreat3 <- lmer(gr_t1t3 ~ treatment + (1|geno) + (1|tank), data = le)
+summary(LM_LEtreat3)
+anova(LM_LEtreat3)
+```
+
+### Scatter plots with regression 
+
+
+#### Total calcification
+1. BW from t0 to t3 w linear regression
+```{r}
+#define custom labels for genotype
+labels_genotype <- c("C" = "Coopers",
+                     "M" = "Marker 9",
+                     "S" = "Sunny Isles")
+
+#bw scatter plot w linear regression
+bwgenoplot1 <-  ggplot(aes(x = ta, y = gr_t0t3, colour = geno), data = bw) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype="dashed") +
+  #scale_x_discrete(labels = custom_labels_x) + # Set custom labels for x-axis (treatment)
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mg/g/day)")+
+  labs(colour = "Genotype")
+#scale_y_continuous(breaks = seq(0, 12, by = 1)) # Add more tick marks on the y-axis
+print(bwgenoplot1)
+```
+2. BW from t0 to t3 with non-linear regression
+
+Check fit of log regression... Not a great R-squared? Should I do an OLS on my linear model first and check residuals? 
+```{r fit of log regression}
+#check fit of log function
+log.bw2 = lm(gr_t0t3 ~ log(ta), data = bw)
+summary(log.bw2)
+```
+
+
+```{r}
+#bw scatter plot w non-linear regression (log)
+bwgenoplot2 <-  ggplot(aes(x = ta, y = gr_t0t3, colour = geno), data = bw) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y~log(x), se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', formula = y~log(x), se = FALSE, linetype = "dashed") +
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mg/g/day)")+
+  labs(colour = "Genotype")
+
+print(bwgenoplot2)
+```
+another way: 
+```{r}
+#need to estimate starting values
+#stat_smooth(method = 'nls', formula = 'y~a*exp(b*x)',
+#                method.args = list(start=c(a=0.1646, b=9.5e-8)), se=FALSE) +
+```
+
+
+3. BW from t1 to t3 w linear regression
+```{r}
+#bw scatter plot w linear regression
+bwgenoplot3 <-  ggplot(aes(x = ta, y = gr_t1t3, colour = geno), data = bw) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype="dashed") +
+  #scale_x_discrete(labels = custom_labels_x) + # Set custom labels for x-axis (treatment)
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mg/g/day)")+
+  labs(colour = "Genotype")
+#scale_y_continuous(breaks = seq(0, 12, by = 1)) # Add more tick marks on the y-axis
+
+print(bwgenoplot3)
+```
+
+4. BW from t1 to t3 with non-linear regression 
+
+coming soon... 
+
+#### Linear Extension 
+1. Linear extension (via 3d scanning) with linear regression
+```{r}
+#LE scatter plot w linear regression using Leios data
+leplot1 <- ggplot(aes(x = ta, y = gr_leios, colour = geno), data = le)+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype="dashed") +
+  #scale_x_discrete(labels = custom_labels_x) + # Set custom labels for x-axis (treatment)
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mm/day)")+
+  labs(colour = "Genotype")
+
+print(leplot1)
+```
+
+2. Linear extension (via 3d scanning) with non-linear regression
+
+coming soon...
+
+3. Linear extension (via ImageJ) from t0 to t3 with linear regression
+```{r}
+#LE scatter plot w linear regression Image J
+leplot3 <- ggplot(aes(x = ta, y = gr_t0t3, colour = geno), data = le)+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype="dashed") +
+  #scale_x_discrete(labels = custom_labels_x) + # Set custom labels for x-axis (treatment)
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mm/day)")+
+  labs(colour = "Genotype")
+
+print(leplot3)
+```
+
+4. Linear extension (via ImageJ) from t0 to t3 with non-linear regression 
+
+coming soon... 
+
+5. Linear extension (via ImageJ) from t1 to t3 with linear regression 
+
+```{r}
+#LE scatter plot w linear regression ImageJ
+leplot5 <- ggplot(aes(x = ta, y = gr_t1t3, colour = geno), data = le)+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE) +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype="dashed") +
+  #scale_x_discrete(labels = custom_labels_x) + # Set custom labels for x-axis (treatment)
+  scale_colour_discrete(labels = labels_genotype) +
+  xlab('TA (umol)')+
+  ylab("Growth rate (mm/day)")+
+  labs(colour = "Genotype")
+
+print(leplot5)
+```
+
+6. Linear extension (via ImageJ) from t1 to t3 with non-linear regression 
+
+Coming soon... 
