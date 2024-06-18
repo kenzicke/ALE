@@ -3,6 +3,8 @@ title: "ALE_Experiment"
 author: "Kenzie Cooke"
 date: "2024-06-16"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -40,14 +42,19 @@ le <- read.csv('data/ALE_le6.16.csv', stringsAsFactors = TRUE)
 #utils::install.packages("lme4", type = "source")
 
 #load packages
-library(lme4)
+library(lmerTest)
 
 #BW mixed linear model 1
-LM_BWTA1 <- lmer(gr_t0t3 ~ ta + (1|geno) + (1|tank), data = bw)
+LM_BWTA1 <- lmerTest::lmer(gr_t0t3 ~ ta + (1|geno) + (1|tank), data = bw)
 summary(LM_BWTA1)
 anova(LM_BWTA1)
-#ranova(LM_BWTA1)
-#step(LM_BWTA1)
+ranova(LM_BWTA1)
+step(LM_BWTA1)
+
+LM_BWTA1b <- lm(gr_t0t3 ~ ta, data = bw)
+summary(LM_BWTA1b)
+anova(LM_BWTA1b)
+
 ```
 2. BW from t1 to t3
 
@@ -82,6 +89,7 @@ anova(LM_BWtreat2)
 LM_LETA1 <- lmer(gr_leios ~ ta + (1|geno) + (1|tank), data = le)
 summary(LM_LETA1)
 anova(LM_LETA1)
+ranova(LM_LETA1)
 ```
 
 2. LE from t0 to t3 using ImageJ
@@ -91,6 +99,12 @@ anova(LM_LETA1)
 LM_LETA2 <- lmer(gr_t0t3 ~ ta + (1|geno) + (1|tank), data = le)
 summary(LM_LETA2)
 anova(LM_LETA2)
+ranova(LM_LETA2)
+
+LM_LETA2 <- lmer(gr_t0t3 ~ ta * geno + (1|tank), data = le)
+summary(LM_LETA2)
+anova(LM_LETA2)
+step(LM_LETA2)
 ```
 
 3. LE from t1 to t3 using Image J
@@ -154,11 +168,19 @@ print(bwgenoplot1)
 
 Check fit of log regression... Not a great R-squared? Should I do an OLS on my linear model first and check residuals? 
 ```{r fit of log regression}
-#check fit of log function
+#check fit of log and non function
+non_log.bw2 = lm(gr_t0t3 ~ta, data = bw)
+summary(non_log.bw2)
+plot(non_log.bw2)
+
 log.bw2 = lm(gr_t0t3 ~ log(ta), data = bw)
 summary(log.bw2)
-```
+plot(log.bw2)
 
+#compare log to nonlog model.. 
+anova(non_log.bw2,log.bw2)
+```
+ 
 
 ```{r}
 #bw scatter plot w non-linear regression (log)
