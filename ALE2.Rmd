@@ -59,7 +59,7 @@ Alkalinity bottle sample quality. Each sample is run in replicate for quality co
 ## Instrument precision (replicate deltas)    
 
 ### AllBottles_delta(umol)
-Histogram depicts deltas between replicates of all 526 alkalinity samples collected for from Febuary 7th to March 19th, 2024  
+Histogram depicts deltas between replicates of all 526 alkalinity samples collected for from February 7th to March 19th, 2024  
 
 ```{r AllBottles_delta}
 delta <- ta_time$delta
@@ -76,8 +76,6 @@ hist_treat <-ggplot(ta_time, aes(x=delta))+
   facet_grid(treat ~ .)
 
 hist_treat
-
-
 ```
 
 ### deltas > 5 umol by treatment  
@@ -164,7 +162,9 @@ tr_hi <- ta_time[ta_time$treat =="hi",]
 tr_xhi <- ta_time[ta_time$treat =="xhi",]
 
 ```
+
 ### AmbientTreat_time
+
 ```{r, fig.cap="Ambient treatment over time using all bottle sample data"}
 
 
@@ -182,6 +182,7 @@ treat_stab_amb
 ```
 
 ### ElevatedTreat_time
+
 ```{r}
 treat_stab_ele <- ggplot(tr_ele, aes(x = date, y = calc_avg_ta, color = delta_bin, shape = precip)) +
   geom_point() +
@@ -602,13 +603,20 @@ seacarb.output.xhi = carb(
 Was alkalinity statistically different between treatments?   
 
 ```{r}
+# install multcomp before!
+library(multcomp)
 
 treat_aov <- aov(avg_ta_mmol ~ treatment, data = grdata)
-
 summary(treat_aov)
 
-tukey_treat <- TukeyHSD(treat_aov)
-print(tukey_treat)
+treat_aov_2 <- lm(avg_ta_mmol ~ treatment, data = grdata)
+ summary(treat_aov_2)
+
+TAemmean<-cld(emmeans(treat_aov_2, ~treatment), Letters = letters)
+TAemmean
+
+#tukey_treat <- cld(TukeyHSD(treat_aov))
+#print(tukey_treat)
 
 ```
 All treatments statistically different from eachother (p < 0.000) except for the extra high and high treatments (p = 0.68)  
@@ -618,6 +626,8 @@ All treatments statistically different from eachother (p < 0.000) except for the
 
 ```{r}
 #ta_time <- read.csv('data/ta_time.csv', stringsAsFactors = TRUE)
+
+#re-define treatment names HERE
 
 dose_names <- c("AMB" = "ambient", "ELEV" = "+0.22", "HI" = "+0.44", "XHI" = "+0.66")
 ta_summary <- bottle_d %>%
@@ -637,11 +647,12 @@ bar_ta
 
 #boxplot 
 
-box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA)) +
+box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill=Treatment)) +
   geom_boxplot() +
   ylab("Total Alkalinity (umol)")+
   scale_x_discrete(labels = c("ambient", "+0.22 mL", "+0.44 mL", "+0.66 mL"))+
-  theme_classic()
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 box_ta
 
@@ -665,37 +676,54 @@ summary_data <- bottle_d %>%
 
 # Plot the summarized data
 treat_stab2 <- ggplot(summary_data, aes(x = Date, y = mean_ta, colour = Treatment)) +
+  geom_jitter(alpha=0.5)+
   geom_point(size = 3.5) +
   geom_linerange(aes(ymin = mean_ta - se_ta, ymax = mean_ta + se_ta)) +
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
   ylab(expression(TA ~ (mu ~ mol))) +
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   scale_colour_discrete(labels = dose_names)
-
-
 treat_stab2
 ```
 
 #### TreatStability_Time_AllDataPoints  
 
-
 ```{r}
 
 # Plot the summarized data
-treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA, colour = Treatment)) +
-  geom_point(size = 2) +
+treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
+  geom_jitter(aes(colour = Treatment), alpha=0.2) +
+  
+  stat_summary(aes (x = Date, y = Avg.TA, colour = Treatment),
+                fun.data = "mean_cl_boot", geom = "errorbar", 
+                width = 0.2,
+                position=position_dodge(width=1))+
+  
+  stat_summary(aes (x = Date, y = Avg.TA, fill=Treatment), size=3, shape=21,
+                fun.data = "mean_cl_boot", geom = "point",
+                position=position_dodge(width=1))+
+
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
   ylab(expression(TA ~ (mu ~ mol))) +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_colour_discrete(labels = dose_names)
-
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  scale_colour_discrete(labels = dose_names)+
+  scale_fill_discrete(labels = dose_names)
 
 treat_stab
+
 ```
 
+```{r}
+TA_summary_plot<-ggarrange(treat_stab + theme(legend.position = "top"),
+                           box_ta + theme(legend.position = "none") ,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1, widths = c(4, 2))
+TA_summary_plot
+
+```
 
 ### Blanks  
 
@@ -748,13 +776,13 @@ blanks_xhi
 
 ```
 
-
 ## TotalCalcification_Alkalinity  
 
 ### Linear mixed effect models  
 #### T0 -> T3 (before lights fixed)
 to check for random effects (tank, genotype)
 BW from t0 to t3, growth ~ ta, 1|geno, 1|tank
+
 ```{r}
 #BW mixed effect linear model 1
 LM_BWTA1 <- lmerTest::lmer(gr_t0t3 ~ avg_ta_mmol + (1|geno) + (1|tank), data = grdata)
@@ -1058,7 +1086,7 @@ bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment
    scale_colour_manual(values = treatment_colors, labels = dose_names ) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
   xlab(expression(TA~(mu~mol))) + 
-  ylab(expression(Growth~rate~(mg~cm^2 ^-1~day^-1))) + 
+  ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) + 
   labs(colour = "dose (mL)", shape = "genotype") +  # Changing the title of the treatment legend
   theme_classic() +
   ylim(y_limits)
