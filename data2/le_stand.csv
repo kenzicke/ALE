@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 tp,length
 zero,24.24
 zero,24.02
@@ -11,3 +12,18 @@ two,23.12
 three,23.46
 three,23.76
 three,23.93
+=======
+tp,length
+zero,24.24
+zero,24.02
+zero,23.98
+one,24.1
+one,24.19
+one,24.01
+two,23.35
+two,23.21
+two,23.12
+three,23.46
+three,23.76
+three,23.93
+>>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
