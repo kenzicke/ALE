@@ -59,11 +59,9 @@ Alkalinity bottle sample quality. Each sample is run in replicate for quality co
 ## Instrument precision (replicate deltas)    
 
 ### AllBottles_delta(umol)
-<<<<<<< HEAD
-Histogram depicts deltas between replicates of all 526 alkalinity samples collected for from Febuary 7th to March 19th, 2024  
-=======
+
 Histogram depicts deltas between replicates of all 526 alkalinity samples collected for from February 7th to March 19th, 2024  
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
 
 ```{r AllBottles_delta}
 delta <- ta_time$delta
@@ -80,11 +78,8 @@ hist_treat <-ggplot(ta_time, aes(x=delta))+
   facet_grid(treat ~ .)
 
 hist_treat
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
 ```
 
 ### deltas > 5 umol by treatment  
@@ -92,6 +87,7 @@ hist_treat
 ```{r}
 # Filter data for delta > 5
 filtered_data <- ta_time[ta_time$delta > 5, ]
+
 
 #histogram of filtered data
 hist_filt <- ggplot(filtered_data, aes(x=delta))+
@@ -171,13 +167,11 @@ tr_hi <- ta_time[ta_time$treat =="hi",]
 tr_xhi <- ta_time[ta_time$treat =="xhi",]
 
 ```
-<<<<<<< HEAD
-### AmbientTreat_time
-=======
+
 
 ### AmbientTreat_time
 
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
 ```{r, fig.cap="Ambient treatment over time using all bottle sample data"}
 
 
@@ -195,10 +189,9 @@ treat_stab_amb
 ```
 
 ### ElevatedTreat_time
-<<<<<<< HEAD
-=======
 
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
+
 ```{r}
 treat_stab_ele <- ggplot(tr_ele, aes(x = date, y = calc_avg_ta, color = delta_bin, shape = precip)) +
   geom_point() +
@@ -378,11 +371,18 @@ bw_boxrate
 ```{r, fig.cap="Measured a standard in three photos from each timepoint to check precision/accuracy of imageJ method across timepoints"}
 
 tporder <- c("zero", "one", "two", "three")
+tp_labels <- c("T0", "T1", "T2", "T3") 
 le_st <- read.csv('data2/le_stand.csv', stringsAsFactors = TRUE)
 le_stands <- ggplot(le_st, aes(x=factor(tp, level = tporder), y=length))+
+  scale_x_discrete(labels = tp_labels)+
   geom_boxplot() +
   geom_jitter()+
-  labs(x= "timepoints", y="length (mm)")+
+  theme_classic()+
+  theme(axis.title.x = element_text(size = 22),
+    axis.title.y = element_text(size = 22),
+    axis.text = element_text(size = 17))+
+  
+  labs(x= "Timepoint", y="Length (mm)")+
    ylim(22.5, 25)
 
 le_stands
@@ -485,43 +485,208 @@ le_boxratee
 
 
 # Results  
+## Fv/Fm
+```{r}
+ipam_data <- read.csv('data2/ale_ipam.csv', stringsAsFactors = TRUE)
+library(lmerTest)
+#A
+anova(lm(fvfm ~ treat + geno, data = ipam_data))
+range(ipam_data$fvfm, na.rm = TRUE)
+mean(ipam_data$fvfm, na.rm = TRUE)
+se_fvfm <- sd(ipam_data$fvfm, na.rm = TRUE) / sqrt(sum(!is.na(ipam_data$fvfm)))
+se_fvfm
 
 
-```{r, results = "hide"}
-#import bottle data
-bottle_d <- read.csv('data2/BottleData.csv', stringsAsFactors = TRUE)
-
-#Calculate the average "Avg.TA" and standard deviation and standard error for each coral across all dates
-stats_per_coral <- bottle_d %>%
-  group_by(Coral) %>%
-  summarise(
-    Average_TA = mean(Avg.TA, na.rm = TRUE),
-    SD_TA = sd(Avg.TA, na.rm = TRUE),
-    SE_TA = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
-  )
-print(stats_per_coral)
-
-#imported this data to google sheets and made growth_data csv with average TA for each coral and growth rates from bw and le data
 ```
 
 ```{r}
-grdata <- read.csv('data2/growth_data.csv', stringsAsFactors = TRUE)
+# Create the data frame
+value <- c(0.548, 0.578, 0.550, 0.552, 0.470, 0.536, 0.591, 0.488,    # AMB
+           0.585, 0.599, 0.509, 0.614, 0.550, 0.482, 0.517,            # ELEV
+           0.607, 0.610, 0.567, 0.557, 0.565, 0.593, 0.554, 0.572, 0.626,  # HI
+           0.565, 0.596, 0.550, 0.579, 0.513, 0.558, 0.613, 0.543, 0.523)  # XHI
 
-grdata$avg_ta_mmol<-grdata$avg_ta/1000
-grdata$ta_sd_mmol<-grdata$ta_sd/1000
-grdata$ta_se_mmol<-grdata$ta_se/1000
-# Create new variable. I converted umol to mmol since the slopes were 0.00 something when the [ta] were in the order of thousands 
+# Create a vector indicating treatment groups for each value
+treatment <- c(rep("AMB", 8), rep("ELEV", 7), rep("HI", 9), rep("XHI", 9))
+
+# Combine into a data frame
+ipamdata <- data.frame(value = value, treatment = treatment)
+
+# Perform the one-way ANOVA
+anova_ipam <- aov(value ~ treatment, data = ipamdata)
+
+# Summary of the ANOVA
+summary(anova_ipam)
 ```
+
+
+Import raw bottle chemistry data. filter out deltas and precipitation samples. Run remainder through Seacarb, appendn pco2 columns. Now have chemistry data that lists info on seacarb pco2 values.
+
+
+```{r}
+
+
+# Read the original raw data
+forseacarb_raw <- read.csv('data2/bottle_raw.csv', stringsAsFactors = TRUE)
+
+
+# Filter out samples where delta > 5, precip == "yes", and missing DIC
+forseacarb_filtered <- forseacarb_raw %>%
+  filter(!delta >= 5) %>%
+  filter(!precip == "yes") %>%
+  filter(!is.na(DIC) & DIC != "")
+
+# Run seacarb to compute carbonate chemistry
+seacarb.output.all = carb(
+  flag = 15,
+  var1 = forseacarb_filtered$Avg.TA / 10^6,  # Convert TA from umol/kg to mol/kg
+  var2 = forseacarb_filtered$DIC / 10^6,  # Convert DIC from umol/kg to mol/kg
+  S = forseacarb_filtered$Salinity,  # Salinity (psu)
+  T = forseacarb_filtered$temp,  # Temperature (°C)
+  P = forseacarb_filtered$dbar / 10  # Pressure (bar)
+)
+
+# Add pCO2 results to the filtered dataframe
+forseacarb_filtered <- forseacarb_filtered %>%
+  mutate(
+    pCO2 = seacarb.output.all$pCO2,
+    pco1000 = ifelse(pCO2 > 1000, "yes", "no"),
+    pco2000 = ifelse(pCO2 > 2000, "yes", "no"),
+    pco5000 = ifelse(pCO2 > 5000, "yes", "no")
+  )
+
+# Extract only the columns needed for merging
+pco2_data <- forseacarb_filtered %>%
+  dplyr::select(sample_id, pCO2, pco1000, pco2000, pco5000)
+
+# Merge pCO2 columns back into the original dataset (including missing dic rows)
+bottle_all <- forseacarb_raw %>%
+  filter(!delta >= 5)%>%
+  filter(!precip == "yes")%>%
+  left_join(pco2_data, by = "sample_id")
+
+
+```
+
+ Create filtered chemistry data sets
+```{r}
+bottle_1000 <- bottle_all %>%
+  filter(pco1000 != 'yes' | is.na(pco1000))
+
+bottle_2000 <- bottle_all %>%
+  filter(pco2000 != 'yes' | is.na(pco2000))
+
+bottle_5000 <- bottle_all %>%
+  filter(pco5000 != 'yes' | is.na(pco5000))
+  
+
+```
+Create stats for corals based on different filtered chemistry data sets
+```{r, results = "hide"}
+
+
+#Calculate the average ta and standard deviation and standard error for each coral across all dates
+ta_coral_all <- bottle_all %>%
+  group_by(Coral) %>%
+  summarise(
+     n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+#filtering out pco2 >1000
+ta_coral_1000 <- bottle_1000 %>%
+  group_by(Coral) %>%
+  summarise(
+     n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+ta_coral_2000 <- bottle_2000 %>%
+  group_by(Coral) %>%
+  summarise(
+    n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+ta_coral_5000 <- bottle_5000 %>%
+  group_by(Coral) %>%
+  summarise(
+    n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+
+
+```
+Import ta stats from above filtered data sets into growth dataframes. Create four based on different filtering of chem data. 
+
+```{r}
+
+growth_raw <- read.csv('data2/growth_raw.csv', stringsAsFactors = TRUE)
+
+# Merge TA statistics into growth data by coral
+growth_all <- growth_raw %>%
+  left_join(ta_coral_all, by = "Coral")
+
+growth_all$avg_ta_mmol<-growth_all$avg_ta/1000
+growth_all$ta_sd_mmol<-growth_all$ta_sd/1000
+growth_all$ta_se_mmol<-growth_all$ta_se/1000
+# Create new variable. I converted umol to mmol since the slopes were 0.00 something when the [ta] were in the order of thousands 
+
+# pco1000
+growth_1000 <- growth_raw %>%
+  left_join(ta_coral_1000, by = "Coral")
+
+growth_1000$avg_ta_mmol<-growth_1000$avg_ta/1000
+growth_1000$ta_sd_mmol<-growth_1000$ta_sd/1000
+growth_1000$ta_se_mmol<-growth_1000$ta_se/1000
+
+#pco2000
+growth_2000 <- growth_raw %>%
+  left_join(ta_coral_2000, by = "Coral")
+
+growth_2000$avg_ta_mmol<-growth_2000$avg_ta/1000
+growth_2000$ta_sd_mmol<-growth_2000$ta_sd/1000
+growth_2000$ta_se_mmol<-growth_2000$ta_se/1000
+
+#pco5000
+growth_5000 <- growth_raw %>%
+  left_join(ta_coral_5000, by = "Coral")
+
+growth_5000$avg_ta_mmol<-growth_5000$avg_ta/1000
+growth_5000$ta_sd_mmol<-growth_5000$ta_sd/1000
+growth_5000$ta_se_mmol<-growth_5000$ta_se/1000
+
+
+```
+
+## DECIDE CUTOFF for PCO2 values
+```{r}
+bottle_d <- bottle_2000
+grdata <- growth_2000
+```
+
 
 Data analysis using bottle data excluding deltas > or equal to 5 umol and any with precipitation.  
 
 ##  Carb chem parameters    
-Carb chem parameters generated using seacarb with measured DIC and TA values. Includes samples from 2/3 - 3/23. 
+Carb chem parameters generated using seacarb with measured DIC and TA values. Includes samples from 2/3 - 3/23.  
+
+###Coral beakers
+
 
 ```{r}
 
-#sort data by treatment, include blanks
-amb_d <- bottle_d[bottle_d$Treatment == "AMB" & !is.na(bottle_d$DIC),]
+#sort data by treatment, exclude blanks
+amb_d <- bottle_d[bottle_d$Treatment == "AMB" & bottle_d$Coral != "Blank" & !is.na(bottle_d$DIC),]
   
 seacarb.output.amb = carb(
   #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
@@ -544,7 +709,7 @@ seacarb.output.amb = carb(
 )
 
 #Elevated treatment
-elev_d <- bottle_d[bottle_d$Treatment == "ELEV" & !is.na(bottle_d$DIC),]
+elev_d <- bottle_d[bottle_d$Treatment == "ELEV" &  bottle_d$Coral != "Blank" & !is.na(bottle_d$DIC),]
   
 seacarb.output.elev = carb(
   #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
@@ -567,7 +732,7 @@ seacarb.output.elev = carb(
 )
 
 #High Treatment
-hi_d <- bottle_d[bottle_d$Treatment == "HI" & !is.na(bottle_d$DIC),]
+hi_d <- bottle_d[bottle_d$Treatment == "HI" & bottle_d$Coral != "Blank" & !is.na(bottle_d$DIC),]
   
 seacarb.output.hi = carb(
   #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
@@ -590,7 +755,7 @@ seacarb.output.hi = carb(
 )
 
 #Extra high treatment
-xhi_d <- bottle_d[bottle_d$Treatment == "XHI" & !is.na(bottle_d$DIC),]
+xhi_d <- bottle_d[bottle_d$Treatment == "XHI" & bottle_d$Coral != "Blank" & !is.na(bottle_d$DIC),]
   
 seacarb.output.xhi = carb(
   #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
@@ -614,22 +779,273 @@ seacarb.output.xhi = carb(
 
 ```
 
+### Blank Beakers
+```{r}
+#Now do seacarb parameters for Blanks 
+#sort data by treatment 
+amb_blank <- bottle_d[bottle_d$Treatment == "AMB" & bottle_d$Coral == "Blank" & !is.na(bottle_d$DIC),]
+  
+seacarb.output.amb_blank = carb(
+  #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
+  flag = 15,
+ 
+  #need to convert TA from umol/kg to mol/kg
+  var1 = amb_blank$Avg.TA / 10 ^ 6,
+ 
+  #need to convert DIC from umol/kg to mol/kg
+  var2 = amb_blank$DIC / 10 ^ 6,
+ 
+  #salinity, in psu
+  S = amb_blank$Salinity,
+ 
+  #temperature, in deg C
+  T = amb_blank$temp,
+ 
+  #pressure, need to convert from dbar to bar
+  P = amb_blank$dbar/ 10
+)
+
+#Elevated treatment
+elev_blank <- bottle_d[bottle_d$Treatment == "ELEV" &  bottle_d$Coral == "Blank" & !is.na(bottle_d$DIC),]
+  
+seacarb.output.elev.blank = carb(
+  #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
+  flag = 15,
+ 
+  #need to convert TA from umol/kg to mol/kg
+  var1 = elev_blank$Avg.TA / 10 ^ 6,
+ 
+  #need to convert DIC from umol/kg to mol/kg
+  var2 = elev_blank$DIC / 10 ^ 6,
+ 
+  #salinity, in psu
+  S = elev_blank$Salinity,
+ 
+  #temperature, in deg C
+  T = elev_blank$temp,
+ 
+  #pressure, need to convert from dbar to bar
+  P = elev_blank$dbar/ 10
+)
+
+#High Treatment
+hi_blank <- bottle_d[bottle_d$Treatment == "HI" & bottle_d$Coral == "Blank" & !is.na(bottle_d$DIC),]
+  
+seacarb.output.hi.blank = carb(
+  #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
+  flag = 15,
+ 
+  #need to convert TA from umol/kg to mol/kg
+  var1 = hi_blank$Avg.TA / 10 ^ 6,
+ 
+  #need to convert DIC from umol/kg to mol/kg
+  var2 = hi_blank$DIC / 10 ^ 6,
+ 
+  #salinity, in psu
+  S = hi_blank$Salinity,
+ 
+  #temperature, in deg C
+  T = hi_blank$temp,
+ 
+  #pressure, need to convert from dbar to bar
+  P = hi_blank$dbar/ 10
+)
+
+#Extra high treatment
+xhi_blank <- bottle_d[bottle_d$Treatment == "XHI" & bottle_d$Coral == "Blank" & !is.na(bottle_d$DIC),]
+  
+seacarb.output.xhi.blank = carb(
+  #flag refers to which two CO2 system variables are being used; here we are using ALK and DIC
+  flag = 15,
+ 
+  #need to convert TA from umol/kg to mol/kg
+  var1 = xhi_blank$Avg.TA / 10 ^ 6,
+ 
+  #need to convert DIC from umol/kg to mol/kg
+  var2 = xhi_blank$DIC / 10 ^ 6,
+ 
+  #salinity, in psu
+  S = xhi_blank$Salinity,
+ 
+  #temperature, in deg C
+  T = xhi_blank$temp,
+ 
+  #pressure, need to convert from dbar to bar
+  P = xhi_blank$dbar/ 10
+)
+```
+###Print carb chem data
+
+```{r}
+stats_amb <- seacarb.output.amb %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+stats_amb_blank <- seacarb.output.amb_blank %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+
+
+# elevated
+stats_elev <- seacarb.output.elev %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+stats_elev_blank <- seacarb.output.elev.blank %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+
+#high
+stats_hi <- seacarb.output.hi %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+stats_hi_blank <- seacarb.output.hi.blank %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+
+
+#xhi
+stats_xhi <- seacarb.output.xhi %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+stats_xhi_blank <- seacarb.output.xhi.blank %>%
+  summarise(
+    n = sum(!is.na(.[[1]])),  # Count non-NA values from any column
+    across(everything(), list(
+      mean = ~mean(.x, na.rm = TRUE),
+      SEM = ~sd(.x, na.rm = TRUE) / sqrt(n)
+    ), .names = "{.col}_{.fn}")
+  )
+
+
+```
+
+
+Export stats to carb chem table 
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+library(writexl)
+
+# Add a treatment and type column
+stats_amb <- stats_amb %>% mutate(Treatment = "AMB", Type = "Regular")
+stats_amb_blank <- stats_amb_blank %>% mutate(Treatment = "AMB", Type = "Blank")
+
+stats_elev <- stats_elev %>% mutate(Treatment = "ELEV", Type = "Regular")
+stats_elev_blank <- stats_elev_blank %>% mutate(Treatment = "ELEV", Type = "Blank")
+
+stats_hi <- stats_hi %>% mutate(Treatment = "HI", Type = "Regular")
+stats_hi_blank <- stats_hi_blank %>% mutate(Treatment = "HI", Type = "Blank")
+
+stats_xhi <- stats_xhi %>% mutate(Treatment = "XHI", Type = "Regular")
+stats_xhi_blank <- stats_xhi_blank %>% mutate(Treatment = "XHI", Type = "Blank")
+
+# Combine all tables
+combined_stats <- bind_rows(
+  stats_amb, stats_amb_blank,
+  stats_elev, stats_elev_blank,
+  stats_hi, stats_hi_blank,
+  stats_xhi, stats_xhi_blank
+)
+
+# Load necessary packages
+library(dplyr)
+library(tidyr)
+library(writexl)
+library(flextable)
+library(officer)
+
+# Define the variables to keep in the correct orde
+vars_to_keep <- c(
+  "n", 
+  "ALK_mean", "ALK_SEM", 
+  "DIC_mean", "DIC_SEM", 
+  "pCO2_mean", "pCO2_SEM", 
+  "pH_mean", "pH_SEM", 
+  "OmegaAragonite_mean", "OmegaAragonite_SEM", 
+  "HCO3_mean", "HCO3_SEM", 
+  "CO3_mean", "CO3_SEM", 
+  "S_mean", "S_SEM"
+)
+
+# Filter only the selected variables
+stats_filtered <- combined_stats %>%
+  pivot_longer(cols = -c(Treatment, Type), 
+               names_to = c("Variable"),
+               values_to = "Value") %>%
+  filter(Variable %in% vars_to_keep)
+
+# Reshape into wide format (treatment as columns, mean & SEM under each)
+stats_wide <- stats_filtered %>%
+  pivot_wider(names_from = Treatment, 
+              values_from = Value,
+              names_glue = "{Treatment}_{.value}")
+
+# Ensure columns match the desired output format
+col_order <- c("Variable", "Type", 
+               "AMB", "AMB_SEM", 
+               "ELEV", "ELEV_SEM", 
+               "HI", "HI_SEM", 
+               "XHI", "XHI_SEM")
+
+# Rename columns for clarity
+colnames(stats_wide) <- gsub("_mean", "", colnames(stats_wide))
+colnames(stats_wide) <- gsub("_SEM", " SEM", colnames(stats_wide))
+
+# Arrange the data in the correct order
+stats_wide <- stats_wide %>%
+  arrange(match(Variable, vars_to_keep))
+
+
+
+
+```
+
 ### ANOVA_treatments  
 
 Was alkalinity statistically different between treatments?   
 
 ```{r}
-<<<<<<< HEAD
 
-treat_aov <- aov(avg_ta_mmol ~ treatment, data = grdata)
-
-summary(treat_aov)
-
-tukey_treat <- TukeyHSD(treat_aov)
-print(tukey_treat)
-=======
-# install multcomp before!
+#install.packages('multcomp')# install multcomp before!
+#install.packages('multcompView')
 library(multcomp)
+library(multcompView)
 
 treat_aov <- aov(avg_ta_mmol ~ treatment, data = grdata)
 summary(treat_aov)
@@ -639,13 +1055,13 @@ treat_aov_2 <- lm(avg_ta_mmol ~ treatment, data = grdata)
 
 TAemmean<-cld(emmeans(treat_aov_2, ~treatment), Letters = letters)
 TAemmean
-
+pairs(emmeans(treat_aov_2, ~treatment), adjust = "tukey")
 #tukey_treat <- cld(TukeyHSD(treat_aov))
 #print(tukey_treat)
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
 
 ```
-All treatments statistically different from eachother (p < 0.000) except for the extra high and high treatments (p = 0.68)  
+All treatments statistically different from eachother (p < 0.000) except for the extra high and high treatments (p = 0.53)  
 
 ### Stability of treatment over time
 #### TA by treatment barplot and boxplot  
@@ -653,12 +1069,16 @@ All treatments statistically different from eachother (p < 0.000) except for the
 ```{r}
 #ta_time <- read.csv('data/ta_time.csv', stringsAsFactors = TRUE)
 
-<<<<<<< HEAD
-=======
-#re-define treatment names HERE
 
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
-dose_names <- c("AMB" = "ambient", "ELEV" = "+0.22", "HI" = "+0.44", "XHI" = "+0.66")
+#re-define treatment names HERE
+#color pallette to assign treatments 
+treatment_colors <- c(
+  AMB = "#52dcbf",   # Light blue
+  ELEV = "#1fa1d5",  # You can adjust this color
+  HI = "#9d3aa6",    # You can adjust this color
+  XHI =  "#6b348f"  )  # Coral
+
+dose_names <- c("AMB" = "ambient", "ELEV" = "+1200 µM", "HI" = "+1850 µM", "XHI" = "+2000 µM")
 ta_summary <- bottle_d %>%
   group_by(Treatment) %>%
   summarise(
@@ -670,26 +1090,86 @@ print(ta_summary)
 bar_ta <- ggplot(ta_summary, aes(x = Treatment, y = mean_ta)) +
   geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
   geom_errorbar(aes(ymin = mean_ta - sem_ta, ymax = mean_ta + sem_ta),width = 0.2,position = position_dodge(0.7)) +
-  theme_classic()
+  theme_classic()+
+  scale_x_discrete(labels = dose_names)
 
 bar_ta
 
 #boxplot 
 
-<<<<<<< HEAD
-box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA)) +
-  geom_boxplot() +
-  ylab("Total Alkalinity (umol)")+
-  scale_x_discrete(labels = c("ambient", "+0.22 mL", "+0.44 mL", "+0.66 mL"))+
-  theme_classic()
-=======
+y_limits <- c(min(bottle_d$Avg.TA), max(bottle_d$Avg.TA))  # Set y-axis limits
+
 box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill=Treatment)) +
   geom_boxplot() +
-  ylab("Total Alkalinity (umol)")+
-  scale_x_discrete(labels = c("ambient", "+0.22 mL", "+0.44 mL", "+0.66 mL"))+
-  theme_classic()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+  ylab(NULL) +
+  xlab("Treatment")+
+  scale_x_discrete(labels = dose_names)+
+  theme_classic(base_size = 15)+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18)     # Optionally adjust legend title size
+  ) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names)+
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
+  
+   geom_text(aes(x = "AMB", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "AMB"]), label = "a"), vjust = -0.5, size = 5, color = "black") +
+  
+  geom_text(aes(x = "ELEV", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "ELEV"]), label = "b"), vjust = -0.5, size = 5, color = "black") +
+  
+  geom_text(aes(x = "HI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "HI"]), label = "c"), vjust = -0.5, size = 5, color = "black") +
+  
+  geom_text(aes(x = "XHI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "XHI"]), label = "c"), vjust = -0.5, size = 5, color = "black")+
+   coord_cartesian(ylim = y_limits) 
+
+
+
+box_ta
+
+# Create a summary table for sample sizes
+sample_sizes <- bottle_d %>%
+  group_by(Treatment) %>%
+  summarise(n = n(), 
+            lower_whisker = quantile(Avg.TA, 0.25, na.rm = TRUE))  # Get Q1 for placement
+
+y_limits <- c(min(bottle_d$Avg.TA), max(bottle_d$Avg.TA))  # Set y-axis limits
+
+box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill = Treatment)) +
+  geom_boxplot() +
+  ylab(NULL) +
+  xlab("Treatment") +
+  scale_x_discrete(labels = dose_names) +
+  theme_classic(base_size = 15) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  theme(
+    axis.title.x = element_text(size = 20),    
+    axis.title.y = element_text(size = 20),    
+    axis.text = element_text(size = 19),       
+    legend.text = element_text(size = 16),     
+    legend.title = element_text(size = 18)     
+  ) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names) +
+  labs(colour = expression(Treatment ~ A[ T ]), fill = expression(Treatment ~ A[ T ])) +
+
+  # Adding "a, b, c" labels above the boxplots
+  geom_text(aes(x = "AMB", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "AMB"]), label = "a"), 
+            vjust = -0.5, size = 5, color = "black") +
+  geom_text(aes(x = "ELEV", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "ELEV"]), label = "b"), 
+            vjust = -0.5, size = 5, color = "black") +
+  geom_text(aes(x = "HI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "HI"]), label = "c"), 
+            vjust = -0.5, size = 5, color = "black") +
+  geom_text(aes(x = "XHI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "XHI"]), label = "c"), 
+            vjust = -0.5, size = 5, color = "black") +
+
+  # Adding "n=xx" inside the lower right of the boxes (Q1 position)
+  geom_text(data = sample_sizes, 
+            aes(x = Treatment, y = lower_whisker, label = paste0("n=", n)), 
+            hjust = 1.1, vjust = 1.2, size = 4.2, color = "black") +
+
+  coord_cartesian(ylim = y_limits)
 
 box_ta
 
@@ -713,83 +1193,91 @@ summary_data <- bottle_d %>%
 
 # Plot the summarized data
 treat_stab2 <- ggplot(summary_data, aes(x = Date, y = mean_ta, colour = Treatment)) +
-<<<<<<< HEAD
-=======
   geom_jitter(alpha=0.5)+
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
   geom_point(size = 3.5) +
   geom_linerange(aes(ymin = mean_ta - se_ta, ymax = mean_ta + se_ta)) +
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
   ylab(expression(TA ~ (mu ~ mol))) +
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
   theme_classic() +
-<<<<<<< HEAD
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_colour_discrete(labels = dose_names)
-
-
-=======
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   scale_colour_discrete(labels = dose_names)
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
 treat_stab2
 ```
 
 #### TreatStability_Time_AllDataPoints  
 
-<<<<<<< HEAD
 
 ```{r}
 
 # Plot the summarized data
-treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA, colour = Treatment)) +
-  geom_point(size = 2) +
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
-  ylab(expression(TA ~ (mu ~ mol))) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_colour_discrete(labels = dose_names)
 
-
-treat_stab
-```
-
-=======
-```{r}
-
-# Plot the summarized data
 treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
-  geom_jitter(aes(colour = Treatment), alpha=0.2) +
+  # Scatter points: jittered points with color (Treatment) and shape (Coral Type)
+  geom_jitter(aes(colour = Treatment), alpha = 0.3) +
   
-  stat_summary(aes (x = Date, y = Avg.TA, colour = Treatment),
-                fun.data = "mean_cl_boot", geom = "errorbar", 
-                width = 0.2,
-                position=position_dodge(width=1))+
-  
-  stat_summary(aes (x = Date, y = Avg.TA, fill=Treatment), size=3, shape=21,
-                fun.data = "mean_cl_boot", geom = "point",
-                position=position_dodge(width=1))+
+  # Error bars (Mean ± CI)
+  stat_summary(aes(x = Date, y = Avg.TA, colour = Treatment),
+               fun.data = "mean_cl_boot", geom = "errorbar", 
+               width = 0.2, position = position_dodge(width = 1)) +
 
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y") +
-  ylab(expression(TA ~ (mu ~ mol))) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  scale_colour_discrete(labels = dose_names)+
-  scale_fill_discrete(labels = dose_names)
+  # Mean points (Summary points with Treatment color)
+  stat_summary(aes(x = Date, y = Avg.TA, colour = Treatment, fill = Treatment, shape = ifelse(Coral == "Blank", "Blank", "Coral")),
+               size = 4, fun.data = "mean_cl_boot", geom = "point",
+               position = position_dodge(width = 1)) +
+
+  # X-axis formatting
+  scale_x_date(breaks = unique_dates, date_labels = "%b %d") +
+  ylab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  
+  # Theme adjustments
+  theme_classic(base_size = 15) +
+  theme(axis.text.x = element_text(angle = 65, hjust = 1),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text = element_text(size = 19),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 18)) +
+
+  # Treatment colors
+  scale_colour_manual(values = treatment_colors, labels = dose_names) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names) +
+
+  # Shape legend (Triangles for Blanks, Circles for others)
+  scale_shape_manual(values = c("Blank" = 17, "Coral" = 16), name = "Beaker content") +
+
+  # Hiding shape from the Treatment legend (only circles show there)
+  guides(shape = guide_legend(order = 2), colour = guide_legend(order = 1), fill = "none") +
+
+  # Legends labeling
+  labs(colour = expression(Treatment ~ A[ T ]), 
+       fill = expression(Treatment ~ A[ T ]), 
+       shape = "Coral Type") + 
+
+  # Limit y-axis range
+  coord_cartesian(ylim = y_limits)
 
 treat_stab
+
 
 ```
 
 ```{r}
-TA_summary_plot<-ggarrange(treat_stab + theme(legend.position = "top"),
-                           box_ta + theme(legend.position = "none") ,
-          labels = c("A", "B"),
-          ncol = 2, nrow = 1, widths = c(4, 2))
+
+TA_summary_plot <- ggarrange(
+  treat_stab + theme(legend.position = "right", plot.margin = margin(5, 5, 50, 5)),  
+  box_ta + theme(legend.position = "none"),
+  labels = c("A", "B"),
+  ncol = 2, nrow = 1, widths = c(4, 2), align = "h",
+  common.legend = TRUE, legend = "right"
+)
+
+
 TA_summary_plot
 
 ```
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
 
 ### Blanks  
 
@@ -808,31 +1296,41 @@ unique_dates <- unique(bottle_d$Date)
 
 blanks_amb <- ggplot(subset(bottle_d, Beaker %in% c("13", "44")), aes(Date, Avg.TA, color = Beaker)) +
   geom_point() +
-  labs(title = "ambient blanks")+
-  theme_classic()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y")
+  geom_line()+
+  labs(title = "Ambient")+
+  ylab(expression(Total~alkalinity ~ (mu~mol~kg^-1)))+
+  theme_classic(base_size = 14)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        )+
+  scale_x_date(breaks = unique_dates, date_labels = "%m/%d")+
+  scale_color_manual(values = c("13" = "slategray4", "44" = "black"))
 
 blanks_elev <- ggplot(subset(bottle_d, Beaker %in% c("3", "33")), aes(Date, Avg.TA, color = Beaker)) +
   geom_point()+
-  labs(title = "elevated treatment blanks (+0.22 mL)")+
-  theme_classic()+
+  geom_line()+
+  labs(title = "+1200 umol")+
+  ylab(expression(Total~alkalinity ~ (mu~mol~kg^-1)))+
+  theme_classic(base_size = 14)+
    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y")
+  scale_x_date(breaks = unique_dates, date_labels = "%m/%d")+scale_color_manual(values = c("33" = "slategray4", "3" = "black"))
 
 blanks_hi <- ggplot(subset(bottle_d, Beaker %in% c("22", "27")), aes(Date, Avg.TA, color = Beaker)) +
   geom_point()+
-  labs(title = "hi treatment blanks (+0.44 mL)")+
-  theme_classic()+
+  geom_line()+
+  labs(title = "+1750 umol")+
+  ylab(expression(Total~alkalinity ~ (mu~mol~kg^-1)))+
+  theme_classic(base_size = 14)+
    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y")
+  scale_x_date(breaks = unique_dates, date_labels = "%m/%d")+scale_color_manual(values = c("22" = "slategray4", "27" = "black"))
 
 blanks_xhi <- ggplot(subset(bottle_d, Beaker %in% c("11", "40")), aes(Date, Avg.TA, color = Beaker)) +
   geom_point()+
-  labs(title = "extra high traetment blanks (+0.66 mL)")+
-  theme_classic()+
+  geom_line()+
+  labs(title = "+1850 umol")+
+  ylab(expression(Total~alkalinity ~ (mu~mol~kg^-1)))+
+  theme_classic(base_size = 14)+
    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_x_date(breaks = unique_dates, date_labels = "%m/%d/%Y")
+  scale_x_date(breaks = unique_dates, date_labels = "%m/%d")+scale_color_manual(values = c("11" = "slategray4", "40" = "black"))
 
 
 blanks_amb
@@ -840,22 +1338,34 @@ blanks_elev
 blanks_hi
 blanks_xhi
 
+blA <- blanks_amb + xlab(NULL) + ylim(1000, 6000) + theme(legend.position = c(0.9, 0.9), plot.title = element_text(hjust = 0.5))
+
+blE <- blanks_elev + xlab(NULL) + ylab(NULL) +ylim(1000, 6000)+theme(legend.position = c(0.9, 0.9), plot.title = element_text(hjust = 0.5))
+
+blH <- blanks_hi + ylim(1000, 6000) +
+  theme(legend.position = c(0.9, 0.9), plot.title = element_text(hjust = 0.5))
+
+blX <- blanks_xhi + ylab(NULL) + ylim(1000, 6000) +
+  theme(legend.position = c(0.9, 0.9), plot.title = element_text(hjust = 0.5))
+
 ```
 
-<<<<<<< HEAD
+#### Blanks summary plot
+```{r}
+blanks_summary_plot <- ggarrange(blA, blE, blH, blX, labels = c("A", "B", "C", "D"), ncol = 2, nrow = 2, align = "h")
 
-=======
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+blanks_summary_plot
+```
+
 ## TotalCalcification_Alkalinity  
 
 ### Linear mixed effect models  
 #### T0 -> T3 (before lights fixed)
 to check for random effects (tank, genotype)
 BW from t0 to t3, growth ~ ta, 1|geno, 1|tank
-<<<<<<< HEAD
-=======
 
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
+
+
 ```{r}
 #BW mixed effect linear model 1
 LM_BWTA1 <- lmerTest::lmer(gr_t0t3 ~ avg_ta_mmol + (1|geno) + (1|tank), data = grdata)
@@ -889,18 +1399,23 @@ summary(LM_BWTA2a)
 anova(LM_BWTA2a)
 plot(LM_BWTA2a)
 
-slope <- coef(LM_BWTA2a)["avg_ta_mmol"]
-summary_model <- summary(LM_BWTA2a)
-r_squared <- summary_model$r.squared
+bw_slope <- coef(LM_BWTA2a)["avg_ta_mmol"]
+bw_intercept <- coef(LM_BWTA2a)[1]  # Intercept
+bw_summary_model <- summary(LM_BWTA2a)
+bw_r_squared <- summary(LM_BWTA2a)$r.squared
+bw_pvalue <- summary(LM_BWTA2a)$coefficients[2, 4]
 
-#r_squared
-#slope
+
+bw_r_squared
+bw_slope
+bw_pvalue
+bw_intercept
 ```
 
 Total alkalinity does have an effect on total calcification (p < 0.001)  
-R-squared: 0.439  
+R-squared: 0.440 
 
-slope: 0.2077  
+slope: 0.192  
 
 
 
@@ -948,7 +1463,7 @@ bwt1t3 <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment)
   geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
   scale_colour_discrete(labels = labels_genotype) +
   scale_shape_discrete(labels = dose_names) +  # Applying dose_names to treatment legend
-  xlab(expression(TA~(mu~mol))) + 
+  xlab(expression(TA~(mu~mol~kg^-1))) + 
   ylab(expression(Growth~rate~(mg~cm^2 ^-1~day^-1))) + 
   labs(colour = "Genotype", shape = "dose (mL)") +  # Changing the title of the treatment legend
   theme_classic()
@@ -998,10 +1513,9 @@ step(LM_LETA2)
 plot(LM_LETA2)
 ```
 
-Hooray! Signficiant effect of TA on linear extension with no tank or genotype effects !!!!  
 
  
-
+no genotype p = 0.60
 
 ```{r}
 LM_LETA2a <- lm(le_t1t3e ~ avg_ta_mmol, data = grdata)
@@ -1009,18 +1523,23 @@ summary(LM_LETA2a)
 anova(LM_LETA2a)
 plot(LM_LETA2a)
 
-slopeLE <- coef(LM_LETA2a)["avg_ta_mmol"]
-summary_model <- summary(LM_LETA2a)
-r_squaredLE <- summary_model$r.squared
+le_slope <- coef(LM_LETA2a)["avg_ta_mmol"]
+le_intercept <- coef(LM_LETA2a)[1]  # Intercept
+le_summary_model <- summary(LM_LETA2a)
+le_r_squared <- summary(LM_LETA2a)$r.squared
+le_pvalue <- summary(LM_LETA2a)$coefficients[2, 4]
 
-r_squaredLE
-slopeLE
+le_slope
+le_intercept
+le_summary_model
+le_r_squared
+le_pvalue
 ```
 
-Simplest linear model produces p = 0.038  
-r-squared: 0.11  
-slope: 0.016  
-
+Simplest linear model produces p = 0.0527  
+r-squared: 0.095  
+slope: 0.014  
+geno: 0.60
 ### Plots  
 
 #### TA_LinearExtension (T0-T3)  
@@ -1109,118 +1628,364 @@ let1t3bar
 
 linear extension-- total growth vs TA. 
 
-## Final Figures
-### Buoyant weight 
+## Final Growth Figures
+### BW subplots
 ```{r}
-#color pallette to assign treatments 
-treatment_colors <- c(
-  AMB = "#00BFFF",   # Light blue
-  ELEV = "#3CB371",  # You can adjust this color
-  HI = "#9370DB",    # You can adjust this color
-  XHI = "#FF7F50"  )  # Coral
 
-# Combine data for faceting
-bwlong <- grdata %>%
-  pivot_longer(cols = starts_with("gr_"), 
-               names_to = "timepoint", 
-               values_to = "growth_rate") %>%
-  mutate(panel = case_when(
-    timepoint %in% c("gr_t1t2", "gr_t2t3") ~ "Panel 1",
-    timepoint == "gr_t1t3" ~ "Panel 2"
-  )) %>%
-  filter(!is.na(panel))  # Exclude rows where panel is NA
+#Generate group CLD letters
+bw_aov <- lm(gr_t1t3 ~ treatment, data = grdata)
+ summary(bw_aov)
+ 
+BWemmean<-cld(emmeans(bw_aov, ~treatment), Letters = letters)
 
-y_limits <- range(c(bwlong$growth_rate, grdata$gr_t1t3))
+BWemmean 
 
-# Create the boxplot with custom panels
-bw_box <- ggplot(bwlong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
-  geom_boxplot() +
-  labs(x = "Timepoints", fill = "Dose (mL)") +
-  ylab(expression(Growth~rate~(mg~cm^2^-1~day^-1))) +
-   scale_fill_manual(values = treatment_colors, labels = dose_names) +
-  facet_wrap(~panel, scales = "free_x", labeller = as_labeller(c("Panel 1" = "Growth rates over time", "Panel 2" = "Overall growth rates"))) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme_classic() +
-  ylim(y_limits) +
-  theme(legend.position = "bottom")+
-   stat_compare_means(aes(group = treatment), 
-                     method = "anova", 
-                     label = "p.signif", 
-                     hide.ns = TRUE, 
-                     comparisons = list(c("AMB", "ELEV"), c("AMB", "HI"), c("AMB", "XHI"), c("ELEV", "HI"), c("ELEV", "XHI"), c("HI", "XHI")))
-  
+pairs(emmeans(bw_aov, ~treatment), adjust = "tukey")
 
-bw_box
+bwcld <- grdata %>%
+  group_by(treatment) %>%
+  summarise(max_value = max(gr_t1t3)) %>%
+    mutate(
+    label = c("a", "b", "b", "b"),
+    max_value = if_else(treatment == "HI", 0.87, max_value)  # Manually set max_value for +1750 µm
+  )
+
+#Calc summary boxplot
+bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
+  geom_boxplot()+
+  ylab(NULL) +
+  xlab("Treatment")+
+  scale_x_discrete(labels = dose_names)+
+  theme_classic(base_size = 14)+
+  theme(plot.margin=unit(c(1,1,1,1), 'cm'))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18)     # Optionally adjust legend title size
+  ) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names)+
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
+  geom_text(data = bwcld, aes(x = treatment, y = max_value, label = label), 
+            vjust = -0.5, size = 5)
+
+
+bw_boxsum
+
+
 
 # Create scatter plot 
 bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment)) +
-  geom_point(aes(shape = geno)) +
+  geom_point(size = 2, aes(shape = geno)) +
   geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
    scale_colour_manual(values = treatment_colors, labels = dose_names ) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
-  xlab(expression(TA~(mu~mol))) + 
-<<<<<<< HEAD
-  ylab(expression(Growth~rate~(mg~cm^2 ^-1~day^-1))) + 
-=======
-  ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) + 
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
-  labs(colour = "dose (mL)", shape = "genotype") +  # Changing the title of the treatment legend
-  theme_classic() +
-  ylim(y_limits)
+  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  ylab(expression(Calcification~rate~(mg~cm^-2~day^-1))) + 
+   labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+  theme_classic(base_size = 14) + 
+   theme(
+    axis.title.x = element_text(size = 20),# Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    legend.position = c(0.8, 0.15),
+    legend.box = "horizontal") +
+  
+  annotate("text", x = 3020, y = 1.2,
+           label = paste("slope =", round(bw_slope, 2), " R² =", round(bw_r_squared, 3), " p < 0.00001"), 
+           color = "black", size = 7,
+           fontface = "bold")
+
+
+  
 
 bw_scat
 
 ```
 
-### Linear Extension  
+### BW finalplot
+```{r}
+library(ggpubr)  # Ensure ggpubr is loaded
+bw_scat <- bw_scat + theme(axis.title.x = element_text(hjust = 0.5, vjust = 3))
+
+bw_summary_plot <- ggarrange(
+  bw_scat,
+  bw_boxsum + theme(legend.position = "none"),
+  labels = c("A", "B"),
+  ncol = 2, nrow = 1, widths = c(4, 2),
+  align = "h"
+)
+
+bw_summary_plot
+```
+
+### LE subplots  
+
+
+```{r}
+#Generate group CLD letters
+
+
+le_ta <- lm(le_t1t3e ~avg_ta, data = growth_2000)
+summary(le_ta)
+le_aov <- lm(le_t1t3e ~ treatment, data = growth_all)
+summary(le_aov)
+ 
+LEemmean<-cld(emmeans(le_aov, ~treatment), Letters = letters)
+
+LEemmean 
+
+lecld <- grdata %>%
+  group_by(treatment) %>%
+  summarise(max_value = max(le_t1t3e)) %>%
+  mutate(label = c("a", "a", "a", "a"))  # Your specific labels
+
+
+
+```
+
+LE boxplot summary
+```{r}
+le_box <- ggplot(grdata, aes(x= treatment, y = le_t1t3e, fill = treatment))+
+                   geom_boxplot()+
+  ylab(NULL) +
+  xlab("Treatment")+
+  scale_x_discrete(labels = dose_names)+
+  theme_classic(base_size = 14)+
+  theme(plot.margin=unit(c(1,1,1,1), 'cm'))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    # Optionally adjust legend title size
+  ) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names)+
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
+   geom_text(data = lecld, aes(x = treatment, y = max_value, label = label), 
+            vjust = -0.5, size = 5)+
+   coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e)))
+
+
+le_box
+                   
+```
+
+LE scatter plot
+
+```{r}
+# Create scatter plot 
+le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatment)) +
+  geom_point(size = 2, aes(shape = geno)) +
+  geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
+  scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
+  scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
+  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) + 
+  ylab(expression(Linear~Extension~(mm~day^-1))) + 
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+  theme_classic(base_size = 14) +
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    legend.position = c(0.8, 0.15),
+    legend.box = "horizontal"# Optionally adjust legend title size
+  ) +
+  coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e))) +  # Explicitly set y-axis limits
+  annotate("text", x = 3000, y = 0.13, 
+           label = paste("slope =", round(le_slope, 2), " R² =", round(le_r_squared, 3), " p =", signif(le_pvalue, 3)), 
+           color = "black", size = 7, fontface = "bold")
+
+le_scat
+
+```
+
+### LE finalplot  
+
+```{r}
+le_scat <- le_scat + theme(axis.title.x = element_text(hjust = 0.5, vjust = 3))
+
+le_summary_plot <- ggarrange(
+  le_scat,
+  le_box + theme(legend.position = "none"),
+  labels = c("A", "B"),
+  ncol = 2, nrow = 1, widths = c(4, 2),
+  align = "h"
+)
+
+le_summary_plot
+
+```
+
+### GrowthXtime
+
+Bw summary
+```{r}
+# Combine data for faceting
+bwlong <- grdata %>%
+  pivot_longer(cols = starts_with("gr_"), 
+               names_to = "timepoint", 
+               values_to = "growth_rate") %>%
+   filter((timepoint %in% c("gr_t1t2", "gr_t2t3")))
+  
+  
+y_limits <- range(c(bwlong$growth_rate, grdata$gr_t1t3))
+
+bw_grxtime <- ggplot(bwlong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
+  geom_boxplot() +
+  labs(x = "Timepoints", fill = "Dose (mL)") +
+  ylab(expression(Calcification~(mg~cm^2^-1~day^-1))) +
+  xlab(NULL)+
+   scale_fill_manual(values = treatment_colors, labels = dose_names)+
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
+  scale_x_discrete(labels = c("Feb 19 - Mar 8","Mar 8 - Mar 23"))+
+  theme_classic()
+  
+
+bw_grxtime
+
+```
+LE summary
 ```{r}
 # Convert the data from wide format to long format
 lelong <- grdata %>%
   pivot_longer(cols = starts_with("le_"), 
                names_to = "timepoint", 
                values_to = "growth_rate") %>%
-   mutate(panel = case_when(
-    timepoint %in% c("le_t1t2e", "le_t2t3e") ~ "Panel 1",
-    timepoint == "le_t1t3e" ~ "Panel 2"
-  )) %>%
-  filter(!is.na(panel))  # Exclude rows where panel is NA
+   filter((timepoint %in% c("le_t1t2e", "le_t2t3e")))
+  
 
 # Determine the y-axis limits
 y_limits <- range(c(lelong$growth_rate, grdata$le_t1t3e))
 
-# Create the boxplot for growth rates across timepoints
-le_box <- ggplot(lelong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
+le_grxtime <- ggplot(lelong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
   geom_boxplot() +
-  labs(x = "Timepoints", fill = "dose (mL) ") +
-   ylab(expression(Growth~rate~(mm~day^-1))) +
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
+  xlab(NULL)+
+   ylab(expression(Linear~Extension~(mm~day^-1))) +
   theme_classic() +
      scale_fill_manual(values = treatment_colors, labels = dose_names) +
-  theme(legend.position = "bottom")+
-  facet_wrap(~panel, scales = "free_x", labeller = as_labeller(c("Panel 1" = "Growth rates over time", "Panel 2" = "Growth from T1 to T3"))) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme_classic() +
-  ylim(y_limits) +
-  theme(legend.position = "bottom")+
-   stat_compare_means(aes(group = treatment), 
-                     method = "anova", 
-                     label = "p.signif", 
-                     hide.ns = TRUE, 
-                     comparisons = list(c("AMB", "ELEV"), c("AMB", "HI"), c("AMB", "XHI"), c("ELEV", "HI"), c("ELEV", "XHI"), c("HI", "XHI")))
+  scale_x_discrete(labels = c("Feb 19 - Mar 8","Mar 8 - Mar 23"))
+
+le_grxtime
+```
+
+```{r}
+grxtime_summary <- ggarrange(
+  bw_grxtime + theme(legend.position = "right",axis.text.x = element_blank(), axis.ticks.x = element_blank()),
+  le_grxtime + theme(legend.position = "none"),
+  labels = c("A", "B"),
+  ncol = 1, nrow = 2,
+  align = "v"
+)
+
+grxtime_summary
+```
+
+Growth over time -- regression 
+
+```{r}
+
+bw_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = gr_t1t2)) +
+  geom_point(aes(color = "gr_t1t2"), size = 2) +
+  geom_smooth(aes(color = "gr_t1t2"), method = 'lm', se = TRUE) +
+  geom_point(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), size = 2) +  
+  geom_smooth(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), method = 'lm', se = TRUE) +  
+  scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "blue2", "gr_t2t3" = "firebrick2"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 28")) +
+  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) +
+  theme_classic(base_size = 14)+
+  theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    # Optionally adjust legend title size
+  )
   
-le_box
 
-# Create scatter plot 
-le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatment)) +
-  geom_point(aes(shape = geno)) +
-  geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
-  scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
-  scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
-  xlab(expression(TA~(mu~mol))) + 
-  ylab(expression(Growth~rate~(mm~day^-1))) + 
-  labs(colour = "dose (mL)", shape = "genotype") +  # Changing the title of the treatment legend
-  theme_classic() 
+bw_grxtime_r
 
-le_scat
 
+#linear extension 
+
+le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
+  geom_point(aes(color = "le_t1t2e"), size = 2) +
+  geom_smooth(aes(color = "le_t1t2e"), method = 'lm', se = TRUE) +
+  geom_point(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), size = 2) +  
+  geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = TRUE) +  
+  scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "blue2", "le_t2t3e" = "firebrick2"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 28")) +
+  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  ylab(expression(Linear~Extenion~(mm~~day^-1))) +
+  theme_classic(base_size = 14)+
+  theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    # Optionally adjust legend title size
+  )
+
+le_grxtime_r
+  
+#Join figures
+
+grxtime_r_summary <- ggarrange(
+  bw_grxtime_r + theme(legend.position = c(0.2, 0.8)),
+  le_grxtime_r + theme(legend.position = "none"),
+  labels = c("A", "B"),
+  ncol = 2, nrow = 1, widths = c(2, 2),
+  align = "h")
+
+grxtime_r_summary
+```
+
+Percent change in growth calculated from slopes
+```{r}
+
+# Calculate average growth rates for the two periods
+growth_summary <- grdata %>%
+  summarize(
+    avg_gr_t1t2 = mean(gr_t1t2, na.rm = TRUE), # First half
+    avg_gr_t2t3 = mean(gr_t2t3, na.rm = TRUE)  # Second half
+  )
+
+# Compute percent decrease
+growth_summary <- growth_summary %>%
+  mutate(percent_decrease = ((avg_gr_t1t2 - avg_gr_t2t3) / avg_gr_t1t2) * 100)
+
+print(growth_summary)
+
+linear_extension_summary <- grdata %>%
+  summarize(
+    avg_le_t1t2e = mean(le_t1t2e, na.rm = TRUE), # First half
+    avg_le_t2t3e = mean(le_t2t3e, na.rm = TRUE)  # Second half
+  ) %>%
+  mutate(percent_decrease = ((avg_le_t1t2e - avg_le_t2t3e) / avg_le_t1t2e) * 100)
+
+print(linear_extension_summary)
+
+```
+
+
+```
+
+
+Call final figures
+```{r}
+TA_summary_plot
+bw_summary_plot
+le_summary_plot
+grxtime_summary
 ```
 

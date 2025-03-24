@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 tp,length
 zero,22.86
 zero,22.93
@@ -31,38 +30,4 @@ three,22.97
 three,23
 three,22.83
 three,22.87
-=======
-tp,length
-zero,22.86
-zero,22.93
-zero,22.77
-zero,22.99
-zero,22.84
-zero,22.86
-zero,22.8
-zero,22.88
-one,22.88
-one,22.8
-one,22.75
-one,22.75
-one,22.75
-one,22.77
-one,22.88
-one,22.75
-two,22.76
-two,22.92
-two,22.99
-two,23.07
-two,22.93
-two,22.92
-two,22.92
-two,23.8
-three,22.96
-three,22.85
-three,22.93
-three,22.97
-three,23
-three,22.83
-three,22.87
->>>>>>> 20c9f7df85402caa8e93c7b3348af3ed20cff7a1
 three,23.3
