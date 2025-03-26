@@ -815,7 +815,7 @@ treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
   scale_fill_manual(values = treatment_colors, labels = dose_names) +
 
   # Shape legend (Triangles for Blanks, Circles for others)
-  scale_shape_manual(values = c("Blank" = 17, "Coral" = 16), name = "Beaker content") +
+  scale_shape_manual(values = c("Blank" = 1, "Coral" = 16), name = "Beaker content") +
 
   # Hiding shape from the Treatment legend (only circles show there)
   guides(shape = guide_legend(order = 2), colour = guide_legend(order = 1), fill = "none") +
