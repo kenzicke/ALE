@@ -108,6 +108,15 @@ bottle_feb7 <- bottle_all %>%
   filter(Date >= as.Date("2024-02-07"))%>%
   filter(pco1000 != "yes"| is.na(pco1000))
 
+bottle_t1t2 <- bottle_all %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y")) %>%
+  filter(Date <= as.Date("2024-03-08"))%>%
+  filter(pco2000 != 'yes'|is.na(pco2000))
+
+bottle_t2t3 <- bottle_all %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y")) %>%
+  filter(Date >= as.Date("2024-03-08"))%>%
+  filter(pco2000 != 'yes'|is.na(pco2000))
 
 ```
 ### Coral TA stats
@@ -162,6 +171,25 @@ ta_coral_feb7 <- bottle_feb7 %>%
     ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
   )
 
+ta_coral_t1t2 <- bottle_t1t2 %>%
+  group_by(Coral) %>%
+  summarise(
+    n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+ta_coral_t2t3 <- bottle_t2t3 %>%
+  group_by(Coral) %>%
+  summarise(
+    n = sum(!is.na(Avg.TA)),  # Count of non-NA values
+    avg_ta = mean(Avg.TA, na.rm = TRUE),
+    ta_sd = sd(Avg.TA, na.rm = TRUE),
+    ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
+  )
+
+
 ```
 ### Growth dataframes
 Import ta stats from above filtered data sets into growth dataframes. Create four based on different filtering of chem data. 
@@ -177,7 +205,7 @@ growth_all <- growth_raw %>%
 growth_all$avg_ta_mmol<-growth_all$avg_ta/1000
 growth_all$ta_sd_mmol<-growth_all$ta_sd/1000
 growth_all$ta_se_mmol<-growth_all$ta_se/1000
-# Create new variable. I converted umol to mmol since the slopes were 0.00 something when the [ta] were in the order of thousands 
+# Create new variable. I converted umol to mmol since the slopes were 0.00 something when the [ta] were in the order of thousands. #avg_ta_mmol will be used in all teh linear models 
 
 # pco1000
 growth_1000 <- growth_raw %>%
@@ -210,6 +238,23 @@ growth_feb7 <- growth_raw %>%
 growth_feb7$avg_ta_mmol<-growth_feb7$avg_ta/1000
 growth_feb7$ta_sd_mmol<-growth_feb7$ta_sd/1000
 growth_feb7$ta_se_mmol<-growth_feb7$ta_se/1000
+
+#t1t2
+growth_t1t2 <- growth_raw %>%
+  left_join(ta_coral_t1t2, by = "Coral")
+
+growth_t1t2$avg_ta_mmol<-growth_t1t2$avg_ta/1000
+growth_t1t2$ta_sd_mmol<-growth_t1t2$ta_sd/1000
+growth_t1t2$ta_se_mmol<-growth_t1t2$ta_se/1000
+
+
+#t2t3
+growth_t2t3 <- growth_raw %>%
+  left_join(ta_coral_t2t3, by = "Coral")
+
+growth_t2t3$avg_ta_mmol<-growth_t2t3$avg_ta/1000
+growth_t2t3$ta_sd_mmol<-growth_t2t3$ta_sd/1000
+growth_t2t3$ta_se_mmol<-growth_t2t3$ta_se/1000
 
 
 ```
@@ -617,7 +662,7 @@ summary(LM_BWTA2)
 anova(LM_BWTA2)
 ranova(LM_BWTA2)
 step(LM_BWTA2)
-plot(LM_BWTA2)
+#plot(LM_BWTA2)
 ```
 
 Using the timepoint after the lights were fixed eliminates the tank effect.  
@@ -627,7 +672,7 @@ Simplest linear model:
 LM_BWTA2a <- lm(gr_t1t3 ~ avg_ta_mmol, data = grdata)
 summary(LM_BWTA2a)
 anova(LM_BWTA2a)
-plot(LM_BWTA2a)
+#plot(LM_BWTA2a)
 
 bw_slope <- coef(LM_BWTA2a)["avg_ta_mmol"]
 bw_intercept <- coef(LM_BWTA2a)[1]  # Intercept
@@ -651,7 +696,7 @@ summary(LM_LETA2)
 anova(LM_LETA2)
 ranova(LM_LETA2)
 step(LM_LETA2)
-plot(LM_LETA2)
+#plot(LM_LETA2)
 ```
 
 
@@ -662,7 +707,7 @@ Simplest linear model:
 LM_LETA2a <- lm(le_t1t3e ~ avg_ta_mmol, data = grdata)
 summary(LM_LETA2a)
 anova(LM_LETA2a)
-plot(LM_LETA2a)
+#plot(LM_LETA2a)
 
 le_slope <- coef(LM_LETA2a)["avg_ta_mmol"]
 le_intercept <- coef(LM_LETA2a)[1]  # Intercept
@@ -696,9 +741,9 @@ treatment_colors <- c(
   XHI =  "#6b348f"  )  # Coral
 
 #define custom labels for genotype
-labels_genotype <- c("C" = "Coopers",
-                     "M" = "Marker 9",
-                     "S" = "Sunny Isles")
+labels_genotype <- c("C" = "A",
+                     "M9" = "B",
+                     "SI" = "C")
 ta_summary <- bottle_d %>%
   group_by(Treatment) %>%
   summarise(
@@ -727,7 +772,7 @@ y_limits <- c(min(bottle_d$Avg.TA), max(bottle_d$Avg.TA))  # Set y-axis limits
 
 box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill = Treatment)) +
   geom_boxplot() +
-  ylab(NULL) +
+  ylab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   xlab("Treatment") +
   scale_x_discrete(labels = dose_names) +
   theme_classic(base_size = 15) +
@@ -799,7 +844,8 @@ treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
 
   # X-axis formatting
   scale_x_date(breaks = unique_dates, date_labels = "%b %d") +
-  ylab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
+ # ylab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
+  ylab(NULL)+
   
   # Theme adjustments
   theme_classic(base_size = 15) +
@@ -837,13 +883,12 @@ treat_stab
 ```{r}
 
 TA_summary_plot <- ggarrange(
-  treat_stab + theme(legend.position = "right", plot.margin = margin(5, 5, 50, 5)),  
-  box_ta + theme(legend.position = "none"),
+  box_ta + theme(legend.position = "none", plot.margin = margin(5, 5, -50, 5)),
+  treat_stab + theme(legend.position = "right"),  
   labels = c("A", "B"),
-  ncol = 2, nrow = 1, widths = c(4, 2), align = "h",
-  common.legend = TRUE, legend = "right"
+  ncol = 2, nrow = 1, widths = c(2, 4), align = "h",
+  font.label = list(size = 25, face = "bold")
 )
-
 
 TA_summary_plot
 
@@ -875,7 +920,7 @@ bwcld <- grdata %>%
 #Calc summary boxplot
 bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
   geom_boxplot()+
-  ylab(NULL) +
+  ylab(expression(Calcification~rate~(mg~cm^-2~day^-1))) +
   xlab("Treatment")+
   scale_x_discrete(labels = dose_names)+
   theme_classic(base_size = 14)+
@@ -896,16 +941,34 @@ bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
 
 bw_boxsum
 
+#Calculate percent incrase in growth between controls and highest treatment 
+
+mean_bwgr <- grdata %>%
+  group_by(treatment) %>%
+  summarise(mean_value = mean(gr_t1t3, na.rm = TRUE))
+
+# View the summary
+print(mean_bwgr)
+
+# Pull values for AMB and XHI
+amb_bwmean <- mean_bwgr %>% filter(treatment == "AMB") %>% pull(mean_value)
+xhi_bwmean <- mean_bwgr %>% filter(treatment == "XHI") %>% pull(mean_value)
+
+# Calculate percent increase from AMB to XHI
+bw_increase <- ((xhi_bwmean - amb_bwmean) / amb_bwmean) * 100
+
+# Print result
+bw_increase
 
 
 # Create scatter plot 
 bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment)) +
-  geom_point(size = 2, aes(shape = geno)) +
+  geom_point(size = 3, aes(shape = geno)) +
   geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
    scale_colour_manual(values = treatment_colors, labels = dose_names ) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
-  ylab(expression(Calcification~rate~(mg~cm^-2~day^-1))) + 
+  ylab(NULL) + 
    labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
   theme_classic(base_size = 14) + 
    theme(
@@ -921,10 +984,9 @@ bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment
     colour = guide_legend(order = 1)   # Move Treatment below it
   ) +
   
-  annotate("text", x = 3020, y = 1.2,
+  annotate("text", x = 3020, y = 1.13,
            label = paste("slope =", round(bw_slope, 2), " R² =", round(bw_r_squared, 3), " p < 0.00001"), 
-           color = "black", size = 7,
-           fontface = "bold")
+           color = "black", size = 6)
 
 
   
@@ -937,15 +999,15 @@ bw_scat
 ```{r}
 
 library(ggpubr)  # Ensure ggpubr is loaded
-bw_scat <- bw_scat + theme(axis.title.x = element_text(hjust = 0.5, vjust = 3))
+bw_scat <- bw_scat + theme(legend.position = "right", axis.title.x = element_text(hjust = 0.5, vjust = 3))
 
 bw_summary_plot <- ggarrange(
+ bw_boxsum + theme(legend.position = "NONE"),
   bw_scat,
-  bw_boxsum + theme(legend.position = "top"),
   labels = c("A", "B"),
-  ncol = 2, nrow = 1, widths = c(4, 2),
+  ncol = 2, nrow = 1, widths = c(2, 4),
   align = "h",
-  common.legend = TRUE, legend = "right"
+  font.label = list(size = 25, face = "bold")
 )
 
 bw_summary_plot
@@ -979,7 +1041,7 @@ LE boxplot summary
 ```{r}
 le_box <- ggplot(grdata, aes(x= treatment, y = le_t1t3e, fill = treatment))+
                    geom_boxplot()+
-  ylab(NULL) +
+  ylab(expression(Linear~extension~(mm~day^-1))) +
   xlab("Treatment")+
   scale_x_discrete(labels = dose_names)+
   theme_classic(base_size = 14)+
@@ -1004,11 +1066,190 @@ le_box
                    
 ```
 
+```{r}
+#Percent increase between controls and highest treatment 
+
+mean_legr <- grdata %>%
+  group_by(treatment) %>%
+  summarise(mean_value = mean(le_t1t3e, na.rm = TRUE))
+
+# View the summary
+print(mean_legr)
+
+# Pull values for AMB and XHI
+amb_lemean <- mean_legr %>% filter(treatment == "AMB") %>% pull(mean_value)
+xhi_lemean <- mean_legr %>% filter(treatment == "XHI") %>% pull(mean_value)
+
+# Calculate percent increase from AMB to XHI
+le_increase <- ((xhi_lemean - amb_lemean) / amb_lemean) * 100
+
+# Print result
+le_increase
+
+
+```
+
+
+
 LE scatter plot
 
 ```{r}
 # Create scatter plot 
 le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatment)) +
+  geom_point(size = 3, aes(shape = geno)) +
+  geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
+  scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
+  scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
+  xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) + 
+  ylab(NULL) + 
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+  theme_classic(base_size = 14) +
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    legend.position = "right",
+    legend.box = "vertical"# Optionally adjust legend title size
+  ) +
+  guides(
+    shape = guide_legend(order = 2),   # Move Genotype to the top
+    colour = guide_legend(order = 1)   # Move Treatment below it
+  ) +
+  coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e))) +  # Explicitly set y-axis limits
+  annotate("text", x = 3020, y = 0.13, 
+           label = paste("slope =", round(le_slope, 2), " R² =", round(le_r_squared, 3), " p =", signif(le_pvalue, 3)), 
+           color = "black", size = 6)
+
+le_scat
+
+```
+
+
+#### growth across timepoints. 
+##### plot for t1-t2. 
+
+```{r}
+
+#stats for t1-t2
+
+LM_LETAsub1 <- lm(le_t1t2e ~ avg_ta_mmol, data = growth_t1t2)
+summary(LM_LETAsub1)
+anova(LM_LETAsub1)
+#plot(LM_LETAsub1)
+
+le_slope1 <- coef(LM_LETAsub1)["avg_ta_mmol"]
+le_intercept1 <- coef(LM_LETAsub1)[1]  # Intercept
+le_summary_model1 <- summary(LM_LETAsub1)
+le_r_squared1 <- summary(LM_LETAsub1)$r.squared
+le_pvalue1 <- summary(LM_LETAsub1)$coefficients[2, 4]
+
+
+
+le_summary_model1
+
+#bw t1-t2 stats
+LM_BWTAsub1 <- lm(gr_t1t2 ~ avg_ta_mmol, data = growth_t1t2)
+summary(LM_BWTAsub1)
+anova(LM_BWTAsub1)
+#plot(LM_BWTAsub1)
+
+bw_slope1 <- coef(LM_BWTAsub1)["avg_ta_mmol"]
+bw_intercept1 <- coef(LM_BWTAsub1)[1]  # Intercept
+bw_summary_model1 <- summary(LM_BWTAsub1)
+bw_r_squared1 <- summary(LM_BWTAsub1)$r.squared
+bw_pvalue1 <- summary(LM_BWTAsub1)$coefficients[2, 4]
+
+#Percent increase in growth 
+mean_le1 <- grdata %>%
+  group_by(treatment) %>%
+  summarise(mean_value = mean(le_t1t2e, na.rm = TRUE))
+
+# View the summary
+print(mean_le1)
+
+# Pull values for AMB and XHI
+amb_le1mean <- mean_le1 %>% filter(treatment == "AMB") %>% pull(mean_value)
+xhi_le1mean <- mean_le1 %>% filter(treatment == "XHI") %>% pull(mean_value)
+
+# Calculate percent increase from AMB to XHI
+le1_increase <- ((xhi_le1mean - amb_le1mean) / amb_le1mean) * 100
+
+# Print result
+le1_increase
+
+
+
+#Create scatter plot for t1-t2
+le_scat1 <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t2e, colour = treatment)) +
+  geom_point(size = 2, aes(shape = geno)) +
+  geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
+  scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
+  scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
+  xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) + 
+  ylab(expression(Linear~extension~(mm~day^-1))) + 
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+  theme_classic(base_size = 14) +
+   theme(
+    axis.title.x = element_text(size = 20),    # Increase X-axis title size
+    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 16),     # Optionally adjust legend text size
+    legend.title = element_text(size = 18),
+    legend.position = c(0.9, 0.15),
+    legend.box = "horizontal"# Optionally adjust legend title size
+  ) +
+  guides(
+    shape = guide_legend(order = 2),   # Move Genotype to the top
+    colour = guide_legend(order = 1)   # Move Treatment below it
+  ) +
+  coord_cartesian(ylim = c(min(grdata$le_t1t2e), max(grdata$le_t1t2e))) +  # Explicitly set y-axis limits
+  annotate("text", x = 3000, y = 0.23, 
+           label = paste("slope =", round(le_slope1, 2), " R² =", round(le_r_squared1, 3), " p =", signif(le_pvalue1, 3)), 
+           color = "black", size = 5, fontface = "bold")
+
+le_scat1
+
+```
+
+##### scatter plot for t2-t3. 
+
+
+```{r}
+
+#stats for t2-t3
+
+LM_LETAsub2 <- lm(le_t2t3e ~ avg_ta_mmol, data = growth_t2t3)
+summary(LM_LETAsub2)
+anova(LM_LETAsub2)
+#plot(LM_LETAsub2)
+
+le_slope2 <- coef(LM_LETAsub2)["avg_ta_mmol"]
+le_intercept2 <- coef(LM_LETAsub2)[1]  # Intercept
+le_summary_model2 <- summary(LM_LETAsub2)
+le_r_squared2 <- summary(LM_LETAsub2)$r.squared
+le_pvalue2 <- summary(LM_LETAsub2)$coefficients[2, 4]
+
+
+
+le_summary_model2
+
+#calcification for t2-t3 
+
+LM_BWTAsub2 <- lm(gr_t2t3 ~ avg_ta_mmol, data = growth_t2t3)
+summary(LM_BWTAsub2)
+anova(LM_BWTAsub2)
+#plot(LM_BWTAsub2)
+
+bw_slope2 <- coef(LM_BWTAsub2)["avg_ta_mmol"]
+bw_intercept2 <- coef(LM_BWTAsub2)[1]  # Intercept
+bw_summary_model2 <- summary(LM_BWTAsub2)
+bw_r_squared2 <- summary(LM_BWTAsub2)$r.squared
+bw_pvalue2 <- summary(LM_BWTAsub2)$coefficients[2, 4]
+
+#Create scatter plot for t2-t3
+le_scat2 <- ggplot(data = grdata, aes(x = avg_ta, y = le_t2t3e, colour = treatment)) +
   geom_point(size = 2, aes(shape = geno)) +
   geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
   scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
@@ -1030,32 +1271,36 @@ le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatmen
     shape = guide_legend(order = 2),   # Move Genotype to the top
     colour = guide_legend(order = 1)   # Move Treatment below it
   ) +
-  coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e))) +  # Explicitly set y-axis limits
-  annotate("text", x = 3000, y = 0.13, 
-           label = paste("slope =", round(le_slope, 2), " R² =", round(le_r_squared, 3), " p =", signif(le_pvalue, 3)), 
-           color = "black", size = 7, fontface = "bold")
+  coord_cartesian(ylim = c(min(grdata$le_t2t3e), max(grdata$le_t2t3e))) +  # Explicitly set y-axis limits
+  annotate("text", x = 3000, y = -0.5, 
+           label = paste("slope =", round(le_slope2, 2), " R² =", round(le_r_squared2, 3), " p =", signif(le_pvalue2, 3)), 
+           color = "black", size = 5)
 
-le_scat
+
+le_scat2
 
 ```
 
-#### LinearExtension_Summary_Plot  
 
+##### LE final
 ```{r}
-le_scat <- le_scat + theme(axis.title.x = element_text(hjust = 0.5, vjust = 3))
+#final plot
 
-le_summary_plot <- ggarrange(
-  le_scat,
-  le_box + theme(legend.position = "none"),
+LE_final <- ggarrange(
+  le_box +theme(legend.position = "none"),le_scat + theme(legend.position = "right"),
+  ncol = 2, nrow = 1, 
+  widths = c(2,4),
   labels = c("A", "B"),
-  ncol = 2, nrow = 1, widths = c(4, 2),
   align = "h",
-   common.legend = TRUE, legend = "right"
+  font.label = list(size = 25, face = "bold")
 )
 
-le_summary_plot
 
+LE_final
 ```
+
+
+
 
 #### Growth X Time
 
@@ -1115,6 +1360,7 @@ grxtime_summary <- ggarrange(
   bw_grxtime + theme(legend.position = "right",axis.text.x = element_blank(), axis.ticks.x = element_blank()),
   le_grxtime + theme(legend.position = "none"),
   labels = c("A", "B"),
+  font.label = list(size = 25, face = "bold"),
   ncol = 1, nrow = 2,
   align = "v"
 )
@@ -1131,14 +1377,12 @@ y_max <- max(grdata$gr_t1t2, grdata$gr_t2t3, grdata$le_t1t2e, grdata$le_t2t3e, n
 
 # Calcification Rate Plot
 bw_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = gr_t1t2)) +
-  geom_point(aes(color = "gr_t1t2"), size = 2) +
   geom_smooth(aes(color = "gr_t1t2"), method = 'lm', se = TRUE) +
-  geom_point(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), size = 2) +  
   geom_smooth(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), method = 'lm', se = TRUE) +  
-  scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "blue2", "gr_t2t3" = "firebrick2"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 28")) +
-  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "#E6A8B1", "gr_t2t3" = "#B79BAA"), labels = c("Feb. 19 - Mar. 8", "Mar. 8 - Mar. 23")) +
+  xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) +
-  ylim(y_min, y_max) +  # Set consistent y-axis scale
+ # ylim(y_min, y_max) +  # Set consistent y-axis scale
   theme_classic(base_size = 14) +
   theme(
     axis.title.x = element_text(size = 20),
@@ -1146,18 +1390,27 @@ bw_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = gr_t1t2)) +
     axis.text = element_text(size = 19),
     legend.text = element_text(size = 16),
     legend.title = element_text(size = 18)
-  )
+  )+
+  annotate("text", x=4500, y=1, label = "***", size = 7)+
+  annotate("text", x = 4500, y = 0.615, label = "***", size = 7)+
+   annotate("text", x = 2750, y = 0.53,
+           label = paste("slope =", round(bw_slope1, 2), " \nR² =", round(bw_r_squared1, 3)), 
+           color = "black", size = 5)+ 
+ annotate("text", x = 2750, y = 0.15,
+           label = paste("slope =", round(bw_slope2, 2), " \nR² =", round(bw_r_squared2, 3)), 
+           color = "black", size = 5)
 
+
+ 
+bw_grxtime_r
 # Linear Extension Plot
 le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
-  geom_point(aes(color = "le_t1t2e"), size = 2) +
   geom_smooth(aes(color = "le_t1t2e"), method = 'lm', se = TRUE) +
-  geom_point(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), size = 2) +  
-  geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = TRUE) +  
-  scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "blue2", "le_t2t3e" = "firebrick2"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 28")) +
-  xlab(expression(Total~alkalinity ~ (mu~mol~kg^-1))) +
+  geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = FALSE) +  
+  scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "#E6A8B1", "le_t2t3e" = "#B79BAA"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 23")) +
+  xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Linear~Extenion~(mm~~day^-1))) +
-  ylim(y_min, y_max) +  # Set consistent y-axis scale
+ # ylim(y_min, y_max) +  # Set consistent y-axis scale
   theme_classic(base_size = 14) +
   theme(
     axis.title.x = element_text(size = 20),
@@ -1165,13 +1418,24 @@ le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
     axis.text = element_text(size = 19),
     legend.text = element_text(size = 16),
     legend.title = element_text(size = 18)
-  )
+  )+
+  #annotate("text", x = 4500, y = 0.16, label = paste("p = ",round(le_pvalue1,2)), size = 5)+
+  annotate("text", x = 4500, y = 0.155, label = "*", size = 7)+
+  annotate("text", x = 4500, y = -0.05, label = "ns", size = 6)+
+   annotate("text", x = 2750, y = 0.079,
+           label = paste("slope =", round(le_slope1, 2), "\nR² =", round(le_r_squared1, 3)), 
+           color = "black", size = 5)+ 
+ annotate("text", x = 2750, y = -0.06,
+           label = paste("slope =", round(le_slope2, 2), "\nR² =", round(le_r_squared2, 3)), 
+           color = "black", size = 5)
+le_grxtime_r
 
 # Join Figures with Aligned Y-Axis
 grxtime_r_summary <- ggarrange(
   bw_grxtime_r + theme(legend.position = c(0.2, 0.8)),
   le_grxtime_r + theme(legend.position = "none"),
   labels = c("A", "B"),
+  font.label = list(size = 25, face = "bold"),
   ncol = 2, nrow = 1, widths = c(2, 2),
   align = "hv"  # Ensure both horizontal and vertical alignment
 )
@@ -1191,6 +1455,7 @@ growth_summary <- grdata %>%
     avg_gr_t2t3 = mean(gr_t2t3, na.rm = TRUE)  # Second half
   )
 
+
 # Compute percent decrease
 growth_summary <- growth_summary %>%
   mutate(percent_decrease = ((avg_gr_t1t2 - avg_gr_t2t3) / avg_gr_t1t2) * 100)
@@ -1206,4 +1471,30 @@ linear_extension_summary <- grdata %>%
 
 print(linear_extension_summary)
 
+#calculate percent increase in le across treatments from t1-t2
+mean_let1t2 <- growth_t1t2 %>%
+  group_by(treatment) %>%
+  summarise(mean_value = mean(le_t1t2e, na.rm = TRUE))
+mean_let1t2
+
+#calculate percent increase in calcification across treatmentes from t1-t2
+mean_bwt1t2 <- growth_t1t2  %>%
+  group_by(treatment) %>%
+  summarise(mean_value = mean(gr_t1t2, na.rm = TRUE))
+mean_bwt1t2
 ```
+## Call Final Figures 
+```{r}
+#call final figures 
+
+TA_summary_plot
+bw_summary_plot
+LE_final
+grxtime_r_summary
+```
+
+SGR comparisons 
+```{r}
+SGR1200 <- 
+```
+

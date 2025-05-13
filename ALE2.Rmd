@@ -370,22 +370,32 @@ bw_boxrate
 #### Standards  
 ```{r, fig.cap="Measured a standard in three photos from each timepoint to check precision/accuracy of imageJ method across timepoints"}
 
-tporder <- c("zero", "one", "two", "three")
-tp_labels <- c("T0", "T1", "T2", "T3") 
+library(ggplot2)
+library(dplyr)
+
+tporder <- c("one", "two", "three")
+tp_labels <- c("February 19th", "March 8th", "March 23rd") 
+
 le_st <- read.csv('data2/le_stand.csv', stringsAsFactors = TRUE)
-le_stands <- ggplot(le_st, aes(x=factor(tp, level = tporder), y=length))+
-  scale_x_discrete(labels = tp_labels)+
+
+# Remove T0 (i.e., "zero")
+le_st_filtered <- le_st %>% filter(tp != "zero")
+
+le_stands <- ggplot(le_st_filtered, aes(x = factor(tp, levels = tporder), y = length)) +
+  scale_x_discrete(labels = tp_labels) +
   geom_boxplot() +
-  geom_jitter()+
-  theme_classic()+
-  theme(axis.title.x = element_text(size = 22),
+  geom_jitter() +
+  theme_classic() +
+  theme(
+    axis.title.x = element_text(size = 22),
     axis.title.y = element_text(size = 22),
-    axis.text = element_text(size = 17))+
-  
-  labs(x= "Timepoint", y="Length (mm)")+
-   ylim(22.5, 25)
+    axis.text = element_text(size = 17)
+  ) +
+  labs(x = "Timepoint", y = "Length (mm)") +
+  ylim(22.5, 25)
 
 le_stands
+
 ```
 Across all timepoints, the ImageJ method has a standard deviation of ± 0.39 mm  and a standard error of ± 0.11 mm. 
 
