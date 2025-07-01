@@ -45,7 +45,7 @@ library(ggpubr)
 ```
 
 
-##Bottle Sample filtering  
+## Bottle sample data curation
 ### Import/filter data
 ```{r}
 
@@ -94,6 +94,8 @@ bottle_all <- forseacarb_raw %>%
 
 ### Filtered chem datasets
 ```{r}
+
+#create separate datasets using highest pCO2 value as a cutoff
 bottle_1000 <- bottle_all %>%
   filter(pco1000 != 'yes' | is.na(pco1000))
 
@@ -102,6 +104,8 @@ bottle_2000 <- bottle_all %>%
 
 bottle_5000 <- bottle_all %>%
   filter(pco5000 != 'yes' | is.na(pco5000))
+
+#create filtered data for before Feb 7th, first half, and second half of experiment
 
 bottle_feb7 <- bottle_all %>%
   mutate(Date = as.Date(Date, format = "%m/%d/%Y")) %>%  # Ensure proper conversion
@@ -124,7 +128,7 @@ Generate mean, sd, sem TA for each coral
 ```{r, results = "hide"}
 
 
-#Calculate the average ta and standard deviation and standard error for each coral across all dates
+#Calculate the average ta, standard deviation and standard error for each coral across all dates
 ta_coral_all <- bottle_all %>%
   group_by(Coral) %>%
   summarise(
@@ -134,7 +138,7 @@ ta_coral_all <- bottle_all %>%
     ta_se = sd(Avg.TA, na.rm = TRUE) / sqrt(n())
   )
 
-#filtering out pco2 >1000
+#filtering by different pco2 cutoffs, first versus second half of experiment
 ta_coral_1000 <- bottle_1000 %>%
   group_by(Coral) %>%
   summarise(
@@ -260,7 +264,7 @@ growth_t2t3$ta_se_mmol<-growth_t2t3$ta_se/1000
 ```
 
 ### DECIDE CUTOFF for PCO2 values
-Choose which data sets to use for all figures and tables. Carb chem data excludes bottle samples with deltas >5, with precipitaiton, and with Seacarb generated pco2 values greater than the cutoff chosen above.  
+Choose which data sets to use for all figures and tables. Carb chem data excludes bottle samples with deltas >5, with precipitaiton, and with Seacarb generated pco2 values greater than the cutoff chosen above.  We have chosen 2000
 ```{r}
 bottle_d <- bottle_2000
 grdata <- growth_2000
@@ -627,8 +631,8 @@ stats_wide <- stats_wide %>%
 print(stats_wide)
 
 ```
-
-### ANOVA_treatments  
+## Statistics
+### Treatment~TA ANOVA  
 
 Was alkalinity statistically different between treatments?   
 
@@ -653,8 +657,20 @@ pairs(emmeans(treat_aov_2, ~treatment), adjust = "tukey")
 
 
 ```
-## Calcification 
-### Linear models
+
+Treatment summaries
+```{r}
+ta_summary <- bottle_d %>%
+  group_by(Treatment) %>%
+  summarise(
+    mean_ta = mean(Avg.TA),
+    sem_ta = sd(Avg.TA) / sqrt(n())
+  )
+print(ta_summary)
+```
+
+### Calcification 
+#### Linear models and ANOVA
 ```{r}
 #BW mixed effect linear model 
 LM_BWTA2 <- lmerTest::lmer(gr_t1t3 ~ avg_ta_mmol + (1|geno) + (1|tank), data = grdata)
@@ -665,8 +681,7 @@ step(LM_BWTA2)
 #plot(LM_BWTA2)
 ```
 
-Using the timepoint after the lights were fixed eliminates the tank effect.  
-
+no genotype effect
 Simplest linear model: 
 ```{r}
 LM_BWTA2a <- lm(gr_t1t3 ~ avg_ta_mmol, data = grdata)
@@ -687,8 +702,8 @@ print(paste("p = ",bw_pvalue))
 print(paste("intercept: ",bw_intercept))
 
 ```
-## Linear Extension 
-### Linear models 
+### Linear Extension 
+#### Linear models and ANOVA
 ```{r}
 #LE mixed effect linear model t1-t3
 LM_LETA2 <- lmerTest::lmer(le_t1t3e ~ avg_ta_mmol + (1|geno) + (1|tank), data = grdata)
@@ -744,24 +759,17 @@ treatment_colors <- c(
 labels_genotype <- c("C" = "A",
                      "M9" = "B",
                      "SI" = "C")
-ta_summary <- bottle_d %>%
-  group_by(Treatment) %>%
-  summarise(
-    mean_ta = mean(Avg.TA),
-    sem_ta = sd(Avg.TA) / sqrt(n())
-  )
-print(ta_summary)
 
-dose_names <- c("AMB" = "ambient", "ELEV" = "+1200 µM", "HI" = "+1850 µM", "XHI" = "+2000 µM")
+
+dose_names <- c("AMB" = "Ambient", "ELEV" = "+1,200", "HI" = "+1,850", "XHI" = "+2,000")
 
 ```
 
-### TA_TimeXTreat
-#### Boxplot 
+### Figure 1 (Treatment TA)
+#### TA~treatment (Boxplot) 
 ```{r}
 #boxplot 
  
-
 # Create a summary table for sample sizes
 sample_sizes <- bottle_d %>%
   group_by(Treatment) %>%
@@ -774,18 +782,20 @@ box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill = Treatment)) +
   geom_boxplot() +
   ylab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   xlab("Treatment") +
-  scale_x_discrete(labels = dose_names) +
+  scale_x_discrete(labels = NULL) +
+  scale_y_continuous(labels = scales::comma) +
   theme_classic(base_size = 15) +
   theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
   theme(
-    axis.title.x = element_text(size = 20),    
-    axis.title.y = element_text(size = 20),    
+    axis.title.x = element_text(size = 23),    
+    axis.title.y = element_text(size = 23),    
     axis.text = element_text(size = 19),       
     legend.text = element_text(size = 16),     
     legend.title = element_text(size = 18)     
   ) +
   scale_fill_manual(values = treatment_colors, labels = dose_names) +
-  labs(colour = expression(Treatment ~ A[ T ]), fill = expression(Treatment ~ A[ T ])) +
+  labs(colour = expression(Treatment ~ A[ T ]), fill = bquote(atop("Treatment " * A[T], "(" * mu * "mol kg"^{-1} * ")"))
+) +
 
   # Adding "a, b, c" labels above the boxplots
   geom_text(aes(x = "AMB", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "AMB"]), label = "a"), 
@@ -809,7 +819,7 @@ box_ta
 
 ```
 
-#### Scatter_Time
+#### TA~time (scatter)
 ```{r}
 # Summarize the data to create mean and std dev for each day by treatment
 #convert date column to "Date" type.
@@ -839,22 +849,23 @@ treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
 
   # Mean points (Summary points with Treatment color)
   stat_summary(aes(x = Date, y = Avg.TA, colour = Treatment, fill = Treatment, shape = ifelse(Coral == "Blank", "Blank", "Coral")),
-               size = 4, fun.data = "mean_cl_boot", geom = "point",
+               size = 6, fun.data = "mean_cl_boot", geom = "point",
                position = position_dodge(width = 1)) +
 
   # X-axis formatting
-  scale_x_date(breaks = unique_dates, date_labels = "%b %d") +
+  scale_x_date(breaks = unique_dates, date_labels = "%m/%d") +
+  scale_y_continuous(labels = scales::comma)+
  # ylab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(NULL)+
   
   # Theme adjustments
   theme_classic(base_size = 15) +
-  theme(axis.text.x = element_text(angle = 65, hjust = 1),
-        axis.title.x = element_text(size = 20),
-        axis.title.y = element_text(size = 20),
-        axis.text = element_text(size = 19),
-        legend.text = element_text(size = 16),
-        legend.title = element_text(size = 18)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.title.x = element_text(size = 23),
+        axis.title.y = element_text(size = 23),
+        axis.text.y = element_text(size = 19),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 17)) +
 
   # Treatment colors
   scale_colour_manual(values = treatment_colors, labels = dose_names) +
@@ -867,7 +878,7 @@ treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
   guides(shape = guide_legend(order = 2), colour = guide_legend(order = 1), fill = "none") +
 
   # Legends labeling
-  labs(colour = expression(Treatment ~ A[ T ]), 
+  labs(colour = bquote(atop("Treatment " * A[T], "(" * mu * "mol kg"^{-1} * ")")), 
        fill = expression(Treatment ~ A[ T ]), 
        shape = "Coral Type") + 
 
@@ -878,16 +889,16 @@ treat_stab
 
 ```
 
-#### TA_Summary_Plot
+#### Final Figure 1 (TA_Summary_Plot)
 
 ```{r}
 
 TA_summary_plot <- ggarrange(
   box_ta + theme(legend.position = "none", plot.margin = margin(5, 5, -50, 5)),
   treat_stab + theme(legend.position = "right"),  
-  labels = c("A", "B"),
+  labels = c("a", "b"),
   ncol = 2, nrow = 1, widths = c(2, 4), align = "h",
-  font.label = list(size = 25, face = "bold")
+  font.label = list(size = 23, face = "bold")
 )
 
 TA_summary_plot
@@ -895,8 +906,8 @@ TA_summary_plot
 ```
 
 
-### Calcification 
-#### Subplots
+### Figure 2 (Calcification~TA) 
+#### stats
 ```{r}
 
 #Generate group CLD letters
@@ -917,6 +928,11 @@ bwcld <- grdata %>%
     max_value = if_else(treatment == "HI", 0.87, max_value)  # Manually set max_value for +1750 µm
   )
 
+bwcld
+```
+
+#### calcification~treatment (boxplot)
+```{r}
 #Calc summary boxplot
 bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
   geom_boxplot()+
@@ -927,25 +943,40 @@ bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
   theme(plot.margin=unit(c(1,1,1,1), 'cm'))+
   theme(axis.text.x = element_text(angle = 60, hjust = 1))+
    theme(
-    axis.title.x = element_text(size = 20),    # Increase X-axis title size
-    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.title.x = element_text(size = 23),    # Increase X-axis title size
+    axis.title.y = element_text(size = 23),    # Increase Y-axis title size
     axis.text = element_text(size = 19),       # Increase axis label text size
-    legend.text = element_text(size = 16),     # Optionally adjust legend text size
-    legend.title = element_text(size = 18)     # Optionally adjust legend title size
+    legend.text = element_text(size = 15),     # Optionally adjust legend text size
+    legend.title = element_text(size = 17)     # Optionally adjust legend title size
   ) +
-  scale_fill_manual(values = treatment_colors, labels = dose_names)+
-  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
-  geom_text(data = bwcld, aes(x = treatment, y = max_value, label = label), 
-            vjust = -0.5, size = 5)
+  scale_fill_manual(values = treatment_colors, labels = dose_names) +
+  scale_x_discrete(labels = NULL)+
+  labs(
+    colour = expression(Treatment ~ A[T]),
+    fill = bquote(atop("Treatment" ~ A[T], "(" ~ mu * "mol kg"^{-1} * ")")),
+    shape = "Coral Type"
+  ) +
+  geom_text(
+    data = bwcld,
+    aes(x = treatment, y = max_value, label = label),
+    vjust = -0.5, size = 5
+  )
+
 
 
 bw_boxsum
+```
 
+#### calcification~TA (regression)
+```{r}
 #Calculate percent incrase in growth between controls and highest treatment 
 
 mean_bwgr <- grdata %>%
   group_by(treatment) %>%
-  summarise(mean_value = mean(gr_t1t3, na.rm = TRUE))
+  summarise(
+    mean_value = mean(gr_t1t3, na.rm = TRUE),
+    sem = sd(gr_t1t3, na.rm = TRUE) / sqrt(sum(!is.na(gr_t1t3)))
+  )
 
 # View the summary
 print(mean_bwgr)
@@ -953,12 +984,14 @@ print(mean_bwgr)
 # Pull values for AMB and XHI
 amb_bwmean <- mean_bwgr %>% filter(treatment == "AMB") %>% pull(mean_value)
 xhi_bwmean <- mean_bwgr %>% filter(treatment == "XHI") %>% pull(mean_value)
-
+elev_bwmean <- mean_bwgr %>% filter(treatment == "ELEV") %>% pull(mean_value)
 # Calculate percent increase from AMB to XHI
-bw_increase <- ((xhi_bwmean - amb_bwmean) / amb_bwmean) * 100
+bw_increase_elev <- ((elev_bwmean - amb_bwmean)/ amb_bwmean) *100
+bw_increase_xhi <- ((xhi_bwmean - amb_bwmean) / amb_bwmean) * 100
 
 # Print result
-bw_increase
+bw_increase_elev
+bw_increase_xhi
 
 
 # Create scatter plot 
@@ -968,15 +1001,21 @@ bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment
    scale_colour_manual(values = treatment_colors, labels = dose_names ) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
+  scale_x_continuous(labels = scales :: comma) +
   ylab(NULL) + 
-   labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+   labs(
+  colour = bquote(atop("Treatment" ~ A[T], "(" * mu * "mol kg"^{-1} * ")"))
+,
+  fill = expression(Treatment ~ A[T]),
+  shape = "Genotype"
+)+
   theme_classic(base_size = 14) + 
    theme(
-    axis.title.x = element_text(size = 20),# Increase X-axis title size
-    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.title.x = element_text(size = 23),# Increase X-axis title size
+    axis.title.y = element_text(size = 23),    # Increase Y-axis title size
     axis.text = element_text(size = 19),       # Increase axis label text size
-    legend.text = element_text(size = 16),     # Optionally adjust legend text size
-    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 15),     # Optionally adjust legend text size
+    legend.title = element_text(size = 17),
     legend.position = c(0.8, 0.15),
     legend.box = "vertical") +
   guides(
@@ -995,26 +1034,26 @@ bw_scat
 
 ```
 
-#### Calcification_Summary_Plot
+#### Final figure 2 (Calcification_Summary_Plot)
 ```{r}
 
 library(ggpubr)  # Ensure ggpubr is loaded
-bw_scat <- bw_scat + theme(legend.position = "right", axis.title.x = element_text(hjust = 0.5, vjust = 3))
+bw_scat <- bw_scat + theme(legend.position = "right")
 
 bw_summary_plot <- ggarrange(
  bw_boxsum + theme(legend.position = "NONE"),
   bw_scat,
-  labels = c("A", "B"),
+  labels = c("a", "b"),
   ncol = 2, nrow = 1, widths = c(2, 4),
   align = "h",
-  font.label = list(size = 25, face = "bold")
+  font.label = list(size = 23, face = "bold")
 )
 
 bw_summary_plot
 ```
 
-### Linear Extension
-#### Subplots
+### Figure 3 (linear extension~TA)
+#### stats
 ```{r}
 #Generate group CLD letters
 
@@ -1037,41 +1076,17 @@ lecld <- grdata %>%
 
 ```
 
-LE boxplot summary
-```{r}
-le_box <- ggplot(grdata, aes(x= treatment, y = le_t1t3e, fill = treatment))+
-                   geom_boxplot()+
-  ylab(expression(Linear~extension~(mm~day^-1))) +
-  xlab("Treatment")+
-  scale_x_discrete(labels = dose_names)+
-  theme_classic(base_size = 14)+
-  theme(plot.margin=unit(c(1,1,1,1), 'cm'))+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
-   theme(
-    axis.title.x = element_text(size = 20),    # Increase X-axis title size
-    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
-    axis.text = element_text(size = 19),       # Increase axis label text size
-    legend.text = element_text(size = 16),     # Optionally adjust legend text size
-    legend.title = element_text(size = 18),
-    # Optionally adjust legend title size
-  ) +
-  scale_fill_manual(values = treatment_colors, labels = dose_names)+
-  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
-   geom_text(data = lecld, aes(x = treatment, y = max_value, label = label), 
-            vjust = -0.5, size = 5)+
-   coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e)))
-
-
-le_box
-                   
-```
-
+Calculate percent increase between controls and highest treatment
 ```{r}
 #Percent increase between controls and highest treatment 
 
 mean_legr <- grdata %>%
   group_by(treatment) %>%
-  summarise(mean_value = mean(le_t1t3e, na.rm = TRUE))
+  summarise(
+    mean_value = mean(le_t1t3e, na.rm = TRUE),
+    sem = sd(le_t1t3e, na.rm = TRUE) / sqrt(sum(!is.na(le_t1t3e)))
+  )
+
 
 # View the summary
 print(mean_legr)
@@ -1089,27 +1104,58 @@ le_increase
 
 ```
 
+#### LE~treatment (boxplot)
+
+```{r}
+le_box <- ggplot(grdata, aes(x= treatment, y = le_t1t3e, fill = treatment))+
+                   geom_boxplot()+
+  ylab(expression(Linear~extension~(mm~day^-1))) +
+  xlab("Treatment")+
+  scale_x_discrete(labels = NULL)+
+  theme_classic(base_size = 14)+
+  theme(plot.margin=unit(c(1,1,1,1), 'cm'))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+   theme(
+    axis.title.x = element_text(size = 23),    # Increase X-axis title size
+    axis.title.y = element_text(size = 23),    # Increase Y-axis title size
+    axis.text = element_text(size = 19),       # Increase axis label text size
+    legend.text = element_text(size = 15),     # Optionally adjust legend text size
+    legend.title = element_text(size = 17),
+    # Optionally adjust legend title size
+  ) +
+  scale_fill_manual(values = treatment_colors, labels = dose_names)+
+  labs(colour = expression(Treatment ~ A[ T ]), fill =  bquote(atop("Treatment" ~ A[T], "(" * mu * "mol kg"^{-1} * ")"))) +
+   geom_text(data = lecld, aes(x = treatment, y = max_value, label = label), 
+            vjust = -0.5, size = 5)+
+   coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e)))
 
 
-LE scatter plot
+le_box
+                   
+```
+
+
+#### LE~TA (regression)
 
 ```{r}
 # Create scatter plot 
 le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatment)) +
   geom_point(size = 3, aes(shape = geno)) +
   geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
+  scale_x_continuous(labels = scales :: comma)+
   scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) + 
   ylab(NULL) + 
-  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
+  labs(colour = bquote(atop("Treatment" ~ A[T], "(" * mu * "mol kg"^{-1} * ")"))
+, fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
   theme_classic(base_size = 14) +
    theme(
-    axis.title.x = element_text(size = 20),    # Increase X-axis title size
-    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.title.x = element_text(size = 23),    # Increase X-axis title size
+    axis.title.y = element_text(size = 23),    # Increase Y-axis title size
     axis.text = element_text(size = 19),       # Increase axis label text size
-    legend.text = element_text(size = 16),     # Optionally adjust legend text size
-    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 15),     # Optionally adjust legend text size
+    legend.title = element_text(size = 17),
     legend.position = "right",
     legend.box = "vertical"# Optionally adjust legend title size
   ) +
@@ -1126,13 +1172,33 @@ le_scat
 
 ```
 
-
-#### growth across timepoints. 
-##### plot for t1-t2. 
-
+#### Final figure 3
 ```{r}
+#final plot
 
-#stats for t1-t2
+LE_final <- ggarrange(
+  le_box +theme(legend.position = "none"),le_scat + theme(legend.position = "right"),
+  ncol = 2, nrow = 1, 
+  widths = c(2,4),
+  labels = c("a", "b"),
+  align = "h",
+  font.label = list(size = 23, face = "bold")
+)
+
+
+LE_final
+```
+
+
+### Growth across timepoints -- exploration
+growth across timepoints. 
+
+#### growth~first half (regression) 
+
+growth (calcificaiton and linear extension) from timepoint 1 to timepoint 2
+
+##### stats for t1-t2
+```{r}
 
 LM_LETAsub1 <- lm(le_t1t2e ~ avg_ta_mmol, data = growth_t1t2)
 summary(LM_LETAsub1)
@@ -1160,25 +1226,44 @@ bw_intercept1 <- coef(LM_BWTAsub1)[1]  # Intercept
 bw_summary_model1 <- summary(LM_BWTAsub1)
 bw_r_squared1 <- summary(LM_BWTAsub1)$r.squared
 bw_pvalue1 <- summary(LM_BWTAsub1)$coefficients[2, 4]
+```
+
+Percenet increase in LE from t1 to t2
+```{r}
 
 #Percent increase in growth 
 mean_le1 <- grdata %>%
   group_by(treatment) %>%
-  summarise(mean_value = mean(le_t1t2e, na.rm = TRUE))
+  summarise(
+    mean_value = mean(le_t1t2e, na.rm = TRUE),
+    sem = sd(le_t1t2e, na.rm = TRUE) / sqrt(sum(!is.na(le_t1t2e)))
+  )
 
+mean_le1_sd <- grdata %>%
+  group_by(treatment) %>%
+  summarise(
+    mean_value = mean(le_t1t2e, na.rm = TRUE),
+    sd_value = sd(le_t1t2e, na.rm = TRUE)
+  )
 # View the summary
 print(mean_le1)
 
 # Pull values for AMB and XHI
 amb_le1mean <- mean_le1 %>% filter(treatment == "AMB") %>% pull(mean_value)
 xhi_le1mean <- mean_le1 %>% filter(treatment == "XHI") %>% pull(mean_value)
+elev_le1mean <- mean_le1 %>% filter(treatment == "ELEV") %>% pull(mean_value)
 
-# Calculate percent increase from AMB to XHI
-le1_increase <- ((xhi_le1mean - amb_le1mean) / amb_le1mean) * 100
+# Calculate percent increase from AMB to ELEV and AMB to XHI
+le1_increase_elev <-  ((elev_le1mean - amb_le1mean) / amb_le1mean) * 100
+le1_increase_xhi <- ((xhi_le1mean - amb_le1mean) / amb_le1mean) * 100
 
 # Print result
-le1_increase
+le1_increase_elev
+le1_increase_xhi
+```
 
+##### regression plot
+```{r}
 
 
 #Create scatter plot for t1-t2
@@ -1213,9 +1298,9 @@ le_scat1
 
 ```
 
-##### scatter plot for t2-t3. 
+#### growth second half (regression) 
 
-
+##### stats
 ```{r}
 
 #stats for t2-t3
@@ -1247,7 +1332,9 @@ bw_intercept2 <- coef(LM_BWTAsub2)[1]  # Intercept
 bw_summary_model2 <- summary(LM_BWTAsub2)
 bw_r_squared2 <- summary(LM_BWTAsub2)$r.squared
 bw_pvalue2 <- summary(LM_BWTAsub2)$coefficients[2, 4]
-
+```
+##### regression
+```{r}
 #Create scatter plot for t2-t3
 le_scat2 <- ggplot(data = grdata, aes(x = avg_ta, y = le_t2t3e, colour = treatment)) +
   geom_point(size = 2, aes(shape = geno)) +
@@ -1259,11 +1346,11 @@ le_scat2 <- ggplot(data = grdata, aes(x = avg_ta, y = le_t2t3e, colour = treatme
   labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]), shape = "Genotype")+
   theme_classic(base_size = 14) +
    theme(
-    axis.title.x = element_text(size = 20),    # Increase X-axis title size
-    axis.title.y = element_text(size = 20),    # Increase Y-axis title size
+    axis.title.x = element_text(size = 23),    # Increase X-axis title size
+    axis.title.y = element_text(size = 23),    # Increase Y-axis title size
     axis.text = element_text(size = 19),       # Increase axis label text size
-    legend.text = element_text(size = 16),     # Optionally adjust legend text size
-    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 15),     # Optionally adjust legend text size
+    legend.title = element_text(size = 17),
     legend.position = c(0.8, 0.15),
     legend.box = "vertical"# Optionally adjust legend title size
   ) +
@@ -1282,94 +1369,7 @@ le_scat2
 ```
 
 
-##### LE final
-```{r}
-#final plot
-
-LE_final <- ggarrange(
-  le_box +theme(legend.position = "none"),le_scat + theme(legend.position = "right"),
-  ncol = 2, nrow = 1, 
-  widths = c(2,4),
-  labels = c("A", "B"),
-  align = "h",
-  font.label = list(size = 25, face = "bold")
-)
-
-
-LE_final
-```
-
-
-
-
-#### Growth X Time
-
-Bw summary
-```{r}
-# Combine data for faceting
-bwlong <- grdata %>%
-  pivot_longer(cols = starts_with("gr_"), 
-               names_to = "timepoint", 
-               values_to = "growth_rate") %>%
-   filter((timepoint %in% c("gr_t1t2", "gr_t2t3")))
-  
-  
-y_limits <- range(c(bwlong$growth_rate, grdata$gr_t1t3))
-
-bw_grxtime <- ggplot(bwlong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
-  geom_boxplot() +
-  labs(x = "Timepoints", fill = "Dose (mL)") +
-  ylab(expression(Calcification~(mg~cm^2^-1~day^-1))) +
-  xlab(NULL)+
-   scale_fill_manual(values = treatment_colors, labels = dose_names)+
-  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
-  scale_x_discrete(labels = c("Feb 19 - Mar 8","Mar 8 - Mar 23"))+
-  theme_classic()
-  
-
-bw_grxtime
-
-```
-LE summary
-```{r}
-# Convert the data from wide format to long format
-lelong <- grdata %>%
-  pivot_longer(cols = starts_with("le_"), 
-               names_to = "timepoint", 
-               values_to = "growth_rate") %>%
-   filter((timepoint %in% c("le_t1t2e", "le_t2t3e")))
-  
-
-# Determine the y-axis limits
-y_limits <- range(c(lelong$growth_rate, grdata$le_t1t3e))
-
-le_grxtime <- ggplot(lelong, aes(x = timepoint, y = growth_rate, fill = treatment)) +
-  geom_boxplot() +
-  labs(colour = expression(Treatment ~ A[ T ]), fill =  expression(Treatment ~ A[ T ]))+
-  xlab(NULL)+
-   ylab(expression(Linear~Extension~(mm~day^-1))) +
-  theme_classic() +
-     scale_fill_manual(values = treatment_colors, labels = dose_names) +
-  scale_x_discrete(labels = c("Feb 19 - Mar 8","Mar 8 - Mar 23"))
-
-le_grxtime
-```
-
-```{r}
-grxtime_summary <- ggarrange(
-  bw_grxtime + theme(legend.position = "right",axis.text.x = element_blank(), axis.ticks.x = element_blank()),
-  le_grxtime + theme(legend.position = "none"),
-  labels = c("A", "B"),
-  font.label = list(size = 25, face = "bold"),
-  ncol = 1, nrow = 2,
-  align = "v"
-)
-
-grxtime_summary
-```
-
-Growth over time -- regression 
-
+### Figure 4 (growth across timepoints)
 ```{r}
 # Find the common y-axis range
 y_min <- min(grdata$gr_t1t2, grdata$gr_t2t3, grdata$le_t1t2e, grdata$le_t2t3e, na.rm = TRUE)
@@ -1380,16 +1380,17 @@ bw_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = gr_t1t2)) +
   geom_smooth(aes(color = "gr_t1t2"), method = 'lm', se = TRUE) +
   geom_smooth(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), method = 'lm', se = TRUE) +  
   scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "#E6A8B1", "gr_t2t3" = "#B79BAA"), labels = c("Feb. 19 - Mar. 8", "Mar. 8 - Mar. 23")) +
+  scale_x_continuous(labels = scales ::comma)+
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) +
  # ylim(y_min, y_max) +  # Set consistent y-axis scale
   theme_classic(base_size = 14) +
   theme(
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
+    axis.title.x = element_text(size = 23),
+    axis.title.y = element_text(size = 23),
     axis.text = element_text(size = 19),
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 18)
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 17)
   )+
   annotate("text", x=4500, y=1, label = "***", size = 7)+
   annotate("text", x = 4500, y = 0.615, label = "***", size = 7)+
@@ -1408,16 +1409,17 @@ le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
   geom_smooth(aes(color = "le_t1t2e"), method = 'lm', se = TRUE) +
   geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = FALSE) +  
   scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "#E6A8B1", "le_t2t3e" = "#B79BAA"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 23")) +
+  scale_x_continuous(labels = scales :: comma)+
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Linear~Extenion~(mm~~day^-1))) +
  # ylim(y_min, y_max) +  # Set consistent y-axis scale
   theme_classic(base_size = 14) +
   theme(
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
+    axis.title.x = element_text(size = 23),
+    axis.title.y = element_text(size = 23),
     axis.text = element_text(size = 19),
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 18)
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 17)
   )+
   #annotate("text", x = 4500, y = 0.16, label = paste("p = ",round(le_pvalue1,2)), size = 5)+
   annotate("text", x = 4500, y = 0.155, label = "*", size = 7)+
@@ -1431,13 +1433,34 @@ le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
 le_grxtime_r
 
 # Join Figures with Aligned Y-Axis
+library(ggpubr)
+
+# Remove x-axis labels from individual plots
 grxtime_r_summary <- ggarrange(
-  bw_grxtime_r + theme(legend.position = c(0.2, 0.8)),
-  le_grxtime_r + theme(legend.position = "none"),
-  labels = c("A", "B"),
-  font.label = list(size = 25, face = "bold"),
+  bw_grxtime_r + 
+    theme(legend.position = c(0.2, 0.8),
+          axis.title.x = element_blank()),
+  
+  le_grxtime_r + 
+    theme(legend.position = "none",
+          axis.title.x = element_blank()),
+  
+  labels = c("a", "b"),
+  font.label = list(size = 23, face = "bold"),
   ncol = 2, nrow = 1, widths = c(2, 2),
-  align = "hv"  # Ensure both horizontal and vertical alignment
+  align = "hv"
+)
+
+# Add shared x-axis label
+library(grid)
+
+grxtime_r_summary <- annotate_figure(
+  grxtime_r_summary,
+  bottom = grid::textGrob(
+    expression("Total alkalinity (" * mu * "mol kg"^{-1} * ")"),
+    gp = gpar(fontsize = 23),
+    just = "center"
+  )
 )
 
 grxtime_r_summary
@@ -1445,43 +1468,199 @@ grxtime_r_summary
 ```
 
 
-Percent change in growth calculated from slopes
+### Supplementary Figure 1 (Property-Property Plot)
+
+```{r}
+library(tidyverse)
+library(seacarb)
+library(metR)
+library(geomtextpath)
+```
+
+#### Data from your T1
+Ideal and other modeled data assumes pCO2 of 400 and the +Alk targets with the 1.26:1, 1:0, and 0:1 to compare methods with keeping Alk targets and letting DIC and pCO2 vary.
++0 (2400),
+Ideal: 2068.82
+Na2CO3 Only: 2068.82
+NaHCO3 Only: 2068.82
+
++15 (3900),
+Ideal: 3243.677
+Na2CO3 Only: 2818.82
+NaHCO3 Only: 3568.82
+
++30 (5400),
+Ideal: 4369.416
+Na2CO3 Only: 3568.82
+NaHCO3 Only: 5068.82
+
++45 (6900)
+Ideal: 5459.844
+Na2CO3 Only: 4318.82
+NaHCO3 Only: 6568.82
+
+```{r}
+alk_dat <- data.frame(
+  treatment = rep(c('Ambient',
+                '+1200',
+                '+1850',
+                '+2000'),4),
+  type = c(rep('Actual', 4),
+           rep('Ideal',4),
+           rep('Na2CO3 Only',4),
+           rep('NaHCO3 Only',4)),
+  TA = c(# actual values
+         2543.5,
+         3744.6,
+         4540.0,
+         4610.9,
+         # ideal values
+         # Na2CO3 Only Values
+         # NaHCO3 Only Values
+         rep(c(2400,
+           2400 + 1500,
+           2400 + 3000,
+           2400 + 4500), 3)
+         ),
+  DIC = c(# actual values
+          2185.4,
+          3049.8,
+          3581.0,
+          3736.5,
+          # ideal values
+          2068.82,
+          3243.677,
+          4369.416,
+          5459.844,
+          # Na2CO3 Only Values
+          2068.82,
+          2818.82,
+          3568.82,
+          4318.82,
+          # NaHCO3 Only Values
+          2068.82,
+          3568.82,
+          5068.82,
+          6568.82
+          ),
+  sal = c(34.40,
+          34.24,
+          34.31,
+          34.60,
+          rep(34.39,12))
+) %>%
+  mutate(carb(flag = 15,
+              var1 = TA/10^6,
+              var2 = DIC/10^6,
+              S = sal,
+              T = 27, P = 0, Patm = 1, Pt = 0, Sit = 0)) %>%
+  dplyr::select(treatment, type, sal, pH,pCO2,DIC, HCO3:OmegaAragonite) %>%
+  mutate(across(c(DIC,ALK, HCO3, CO3,), ~.*10^6))
+
+summary(alk_dat)
+
+```
+
+#### create a range of carb chems surrounding your data
+```{r}
+# Define range for DIC and TA
+DIC_range <- seq(2000, 7000, length.out = 50) # umol/kg
+TA_range <- seq(2000, 7000, length.out = 50)  # umol/kg
+
+# Generate grid of DIC and TA
+dat <- expand.grid(DIC = DIC_range, TA = TA_range) %>%
+# Calculate carbonate chemistry using seacarb (flag=15 means DIC & TA given)
+# Assume salinity = 35, temperature = 25°C, pressure = 0 dbar
+  mutate(carb(
+  flag = 15,
+  var1 = TA/10^6,
+  var2 = DIC/10^6,
+  S = mean(alk_dat$sal), T = 27, P = 0, Patm = 1, Pt = 0, Sit = 0
+)) %>%
+  dplyr::select(DIC, TA, pH, pCO2, OmegaAragonite) %>%
+  mutate(DIC = DIC*10^6)
+```
+
+#### Plot the range, overlay your data
+```{r, warning=FALSE}
+# Plot using ggplot
+pp_pco2 <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z=pCO2)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) + # 
+  geom_contour(
+               color = "black", alpha = 0.7, linewidth = 0.6,
+               breaks =  c(25,100, 400, 1000, 5000)) +
+  # adds pCO2 labels
+  geom_textcontour(
+                   breaks =  c(25,100,400, 1000, 5000),
+                   size = 4, spacing=2.5, gap=TRUE,
+                   remove_long = TRUE,
+                   vjust=0, hjust=0.4) +
+  geom_point(data = alk_dat, aes(DIC, ALK),
+             color="darkred", size=3, inherit.aes = F) +
+  facet_wrap(~type, scales = "free") + 
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  coord_cartesian(ylim = c(2000, 7000), xlim = c(2000, 6000)) +
+  labs(x = expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
+       y = expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
+       fill = "pH") +
+  theme_minimal() +
+  theme_minimal() + 
+  theme(strip.placement = "inside",
+        strip.text.x.top =  element_text(angle = 0,size=12))
+
+pp_pco2
+ggsave('./pp-pCO2_kenzie.tiff',
+       dpi = 600,
+       width = 6,
+       height = 5,
+       units = "in",
+       device = "tiff",
+       compression = "lzw")
+
+```
+
+Calculate percent increase in growth between controls and different treatments 
 ```{r}
 
-# Calculate average growth rates for the two periods
-growth_summary <- grdata %>%
-  summarize(
-    avg_gr_t1t2 = mean(gr_t1t2, na.rm = TRUE), # First half
-    avg_gr_t2t3 = mean(gr_t2t3, na.rm = TRUE)  # Second half
-  )
-
-
-# Compute percent decrease
-growth_summary <- growth_summary %>%
-  mutate(percent_decrease = ((avg_gr_t1t2 - avg_gr_t2t3) / avg_gr_t1t2) * 100)
-
-print(growth_summary)
-
-linear_extension_summary <- grdata %>%
-  summarize(
-    avg_le_t1t2e = mean(le_t1t2e, na.rm = TRUE), # First half
-    avg_le_t2t3e = mean(le_t2t3e, na.rm = TRUE)  # Second half
-  ) %>%
-  mutate(percent_decrease = ((avg_le_t1t2e - avg_le_t2t3e) / avg_le_t1t2e) * 100)
-
-print(linear_extension_summary)
 
 #calculate percent increase in le across treatments from t1-t2
 mean_let1t2 <- growth_t1t2 %>%
   group_by(treatment) %>%
-  summarise(mean_value = mean(le_t1t2e, na.rm = TRUE))
-mean_let1t2
+  summarise(
+    mean_value = mean(le_t1t2e, na.rm = TRUE),
+    sem = sd(le_t1t2e, na.rm = TRUE) / sqrt(sum(!is.na(le_t1t2e)))
+    )
+print (mean_let1t2)
+
+# Pull values for AMB and XHI
+amb_lemeant1t2 <- mean_let1t2 %>% filter(treatment == "AMB") %>% pull(mean_value)
+xhi_lemeant1t2 <- mean_let1t2 %>% filter(treatment == "XHI") %>% pull(mean_value)
+
+
+# Calculate percent increase from AMB to XHI
+let1t2_increase <- ((xhi_lemeant1t2 - amb_lemeant1t2) / amb_lemeant1t2) * 100
+
+print(let1t2_increase)
 
 #calculate percent increase in calcification across treatmentes from t1-t2
 mean_bwt1t2 <- growth_t1t2  %>%
   group_by(treatment) %>%
-  summarise(mean_value = mean(gr_t1t2, na.rm = TRUE))
-mean_bwt1t2
+  summarise(mean_value = mean(gr_t1t2, na.rm = TRUE),
+            sem = sd(gr_t1t2, na.rm = TRUE) / sqrt(sum(!is.na(gr_t1t2)))
+    ) 
+print(mean_bwt1t2)
+
+# Pull values for AMB and XHI
+amb_bwmeant1t2 <- mean_bwt1t2 %>% filter(treatment == "AMB") %>% pull(mean_value)
+xhi_bwmeant1t2 <- mean_bwt1t2 %>% filter(treatment == "XHI") %>% pull(mean_value)
+
+
+# Calculate percent increase from AMB to XHI
+bwt1t2_increase <- ((xhi_bwmeant1t2 - amb_bwmeant1t2) / amb_bwmeant1t2) * 100
+
+print(bwt1t2_increase)
 ```
 ## Call Final Figures 
 ```{r}
@@ -1493,8 +1672,23 @@ LE_final
 grxtime_r_summary
 ```
 
-SGR comparisons 
 ```{r}
-SGR1200 <- 
+#save figures 
+
+ggsave("figure1.pdf", plot = TA_summary_plot,
+       width = 16, height = 10, units = "in", dpi = 300)
+
+ggsave("figure2.pdf", plot = bw_summary_plot, 
+       width = 16, height = 10, units = "in", dpi = 300)
+
+ggsave("figure3.pdf", plot = LE_final,
+       width = 16, height = 10, units = "in", dpi = 300)
+
+ggsave("figure4.pdf", plot = grxtime_r_summary,
+       width = 16, height = 10, units = "in", dpi = 300)
+
+ggsave("figureS1.pdf", plot = pp_pco2,
+       width = 8, height = 7, units = "in", dpi = 600)
+
 ```
 
