@@ -1442,8 +1442,8 @@ y_max <- max(grdata$gr_t1t2, grdata$gr_t2t3, grdata$le_t1t2e, grdata$le_t2t3e, n
 # Calcification Rate Plot
 bw_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = gr_t1t2)) +
   geom_smooth(aes(color = "gr_t1t2"), method = 'lm', se = TRUE) +
-  geom_smooth(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), method = 'lm', se = TRUE) +  
-  scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "#E6A8B1", "gr_t2t3" = "#B79BAA"), labels = c("Feb. 19 - Mar. 8", "Mar. 8 - Mar. 23")) +
+  geom_smooth(data = grdata, aes(x = avg_ta, y = gr_t2t3, color = "gr_t2t3"), method = 'lm', se = TRUE, linetype = "dotted") +  
+  scale_color_manual(name = "Growth period", values = c("gr_t1t2" = "black", "gr_t2t3" = "black"), labels = c("Feb. 19 - Mar. 8", "Mar. 8 - Mar. 23")) +
   scale_x_continuous(labels = scales ::comma)+
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Calcification~rate~(mg~cm^2 ^-1~day^-1))) +
@@ -1471,8 +1471,8 @@ bw_grxtime_r
 # Linear Extension Plot
 le_grxtime_r <- ggplot(grdata, aes(x = avg_ta, y = le_t1t2e)) +
   geom_smooth(aes(color = "le_t1t2e"), method = 'lm', se = TRUE) +
-  geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = FALSE) +  
-  scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "#E6A8B1", "le_t2t3e" = "#B79BAA"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 23")) +
+  geom_smooth(data = grdata, aes(x = avg_ta, y = le_t2t3e, color = "le_t2t3e"), method = 'lm', se = FALSE, linetype = "dotted") +  
+  scale_color_manual(name = "Growth period", values = c("le_t1t2e" = "black", "le_t2t3e" = "black"), labels = c("Feb 19 to Mar 8", "Mar 8 to Mar 23")) +
   scale_x_continuous(labels = scales :: comma)+
   xlab(expression(Total~alkalinity ~ (mu*mol~kg^-1))) +
   ylab(expression(Linear~Extenion~(mm~~day^-1))) +
