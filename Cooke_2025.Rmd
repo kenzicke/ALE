@@ -201,6 +201,8 @@ Import ta stats from above filtered data sets into growth dataframes. Create fou
 ```{r}
 
 growth_raw <- read.csv('data2/growth_raw.csv', stringsAsFactors = TRUE)
+# NOTE: This script uses pre-calculated growth rates from growth_raw.csv.
+# Raw measurements are provided separately for reproducibility (see README).
 
 # Merge TA statistics into growth data by coral
 growth_all <- growth_raw %>%

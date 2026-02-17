@@ -201,6 +201,8 @@ Import ta stats from above filtered data sets into growth dataframes. Create fou
 ```{r}
 
 growth_raw <- read.csv('data2/growth_raw.csv', stringsAsFactors = TRUE)
+# NOTE: This script uses pre-calculated growth rates from growth_raw.csv.
+# Raw measurements are provided separately for reproducibility (see README).
 
 # Merge TA statistics into growth data by coral
 growth_all <- growth_raw %>%
@@ -769,6 +771,13 @@ dose_names <- c("AMB" = "Ambient", "ELEV" = "+1,200", "HI" = "+1,850", "XHI" = "
 #### TA~treatment (Boxplot) 
 ```{r}
 #boxplot 
+label_df <- data.frame(
+  Treatment = c("AMB", "ELEV", "HI", "XHI"),
+  label = c("a", "b", "c", "c"),
+  y = sapply(c("AMB", "ELEV", "HI", "XHI"), function(t) max(bottle_d$Avg.TA[bottle_d$Treatment == t]))
+)
+
+
  
 # Create a summary table for sample sizes
 sample_sizes <- bottle_d %>%
@@ -797,15 +806,9 @@ box_ta <- ggplot(bottle_d, aes(x = Treatment, y = Avg.TA, fill = Treatment)) +
   labs(colour = expression(Treatment ~ A[ T ]), fill = bquote(atop("Treatment " * A[T], "(" * mu * "mol kg"^{-1} * ")"))
 ) +
 
-  # Adding "a, b, c" labels above the boxplots
-  geom_text(aes(x = "AMB", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "AMB"]), label = "a"), 
-            vjust = -0.5, size = 5, color = "black") +
-  geom_text(aes(x = "ELEV", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "ELEV"]), label = "b"), 
-            vjust = -0.5, size = 5, color = "black") +
-  geom_text(aes(x = "HI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "HI"]), label = "c"), 
-            vjust = -0.5, size = 5, color = "black") +
-  geom_text(aes(x = "XHI", y = max(bottle_d$Avg.TA[bottle_d$Treatment == "XHI"]), label = "c"), 
-            vjust = -0.5, size = 5, color = "black") +
+  geom_text(data = label_df,
+          aes(x = Treatment, y = y, label = label),
+          vjust = -0.5, size = 5, color = "black") +
 
   # Adding "n=xx" inside the lower right of the boxes (Q1 position)
   geom_text(data = sample_sizes, 
@@ -851,6 +854,11 @@ treat_stab <- ggplot(bottle_d, aes(x = Date, y = Avg.TA)) +
   stat_summary(aes(x = Date, y = Avg.TA, colour = Treatment, fill = Treatment, shape = ifelse(Coral == "Blank", "Blank", "Coral")),
                size = 6, fun.data = "mean_cl_boot", geom = "point",
                position = position_dodge(width = 1)) +
+ stat_summary(data = subset(bottle_d, Coral != "Blank"),
+             aes(x = Date, y = Avg.TA, colour = Treatment, group = Treatment),
+             fun = mean, geom = "line", size = 0.7,
+             position = position_dodge(width = 1), alpha = 0.2)+
+
 
   # X-axis formatting
   scale_x_date(breaks = unique_dates, date_labels = "%m/%d") +
@@ -958,7 +966,7 @@ bw_boxsum <- ggplot(grdata, aes(x=treatment, y=gr_t1t3, fill=treatment))+
   ) +
   geom_text(
     data = bwcld,
-    aes(x = treatment, y = max_value, label = label),
+    aes(x = treatment, y= max_value, label = label),
     vjust = -0.5, size = 5
   )
 
@@ -1024,15 +1032,68 @@ bw_scat <- ggplot(data = grdata, aes(x = avg_ta, y = gr_t1t3, colour = treatment
   ) +
   
   annotate("text", x = 3020, y = 1.13,
-           label = paste("slope =", round(bw_slope, 2), " R² =", round(bw_r_squared, 3), " p < 0.00001"), 
-           color = "black", size = 6)
+           label = paste(" R² =", round(bw_r_squared, 3), " p < 0.00001"), 
+           color = "black", size = 4)
 
 
   
 
 bw_scat
 
+# For 3MT
+tmt_plot <- bw_scat +
+  guides(shape = "none", color = "none") +
+  theme_classic(base_size = 18) +
+  ylab(expression(Calcification~rate~(mg~cm^-2~day^-1)))
+
+tmt_plotTrans <- tmt_plot + theme_present(18) 
+
+tmt_plot
+
+ggsave(plot = tmt_plotTrans,
+       filename = "figures/3mtTrans.png",
+       width = 5.5,
+       height = 4.5,
+       bg = "transparent")
+
+
+ggsave(plot = tmt_plot,
+       filename = "figures/3mtPlot.png",
+       width = 5.5,
+       height = 4.5)
+
 ```
+
+```{r}
+library(janitor)
+bw_mass <- read.csv("data2/bwMass - Sheet1.csv") |> 
+  clean_names() |> 
+  mutate(date = as.Date(date, format = "%m/%d/%Y")) |> 
+  mutate(coral = paste(genotype, tag)) |> 
+  arrange(coral, date) |> 
+  group_by(coral) |> 
+  mutate(
+    initial_weight = first(dry_weight_g), 
+    percent_change = (dry_weight_g - initial_weight)/initial_weight * 100
+  ) |> 
+  ungroup()
+  
+bw_mass <- bw_mass |> 
+  left_join(grdata |> 
+              mutate(coral = paste(geno, tag)) |> 
+              dplyr::select(coral, treatment), 
+            by = "coral")
+
+ggplot(data = bw_mass,
+       mapping = aes(x = date, y = percent_change, group = coral, color = treatment)) +
+  geom_point() +
+  geom_line()
+
+
+  
+```
+
+
 
 #### Final figure 2 (Calcification_Summary_Plot)
 ```{r}
@@ -1051,6 +1112,11 @@ bw_summary_plot <- ggarrange(
 
 bw_summary_plot
 ```
+
+```{r}
+ggplot(data = grdata, aes(x = ))
+```
+
 
 ### Figure 3 (linear extension~TA)
 #### stats
@@ -1125,8 +1191,6 @@ le_box <- ggplot(grdata, aes(x= treatment, y = le_t1t3e, fill = treatment))+
   ) +
   scale_fill_manual(values = treatment_colors, labels = dose_names)+
   labs(colour = expression(Treatment ~ A[ T ]), fill =  bquote(atop("Treatment" ~ A[T], "(" * mu * "mol kg"^{-1} * ")"))) +
-   geom_text(data = lecld, aes(x = treatment, y = max_value, label = label), 
-            vjust = -0.5, size = 5)+
    coord_cartesian(ylim = c(min(grdata$le_t1t3e), max(grdata$le_t1t3e)))
 
 
@@ -1141,7 +1205,7 @@ le_box
 # Create scatter plot 
 le_scat <- ggplot(data = grdata, aes(x = avg_ta, y = le_t1t3e, colour = treatment)) +
   geom_point(size = 3, aes(shape = geno)) +
-  geom_smooth(color = 1, method = 'lm', se = TRUE, linetype = "dashed") +
+  geom_smooth(color = 1, method = 'lm', se = FALSE, linetype = "dashed") +
   scale_x_continuous(labels = scales :: comma)+
   scale_colour_manual(values = treatment_colors, labels = dose_names) +  # Use scale_colour_manual to apply treatment_colors
   scale_shape_discrete(labels = labels_genotype) +  # Apply labels to the genotype legend
@@ -1554,7 +1618,7 @@ alk_dat <- data.frame(
               var2 = DIC/10^6,
               S = sal,
               T = 27, P = 0, Patm = 1, Pt = 0, Sit = 0)) %>%
-  dplyr::select(treatment, type, sal, pH,pCO2,DIC, HCO3:OmegaAragonite) %>%
+  dplyr::select(treatment, type, sal, TA, pH,pCO2,DIC, HCO3:OmegaAragonite) %>%
   mutate(across(c(DIC,ALK, HCO3, CO3,), ~.*10^6))
 
 summary(alk_dat)
@@ -1581,44 +1645,97 @@ dat <- expand.grid(DIC = DIC_range, TA = TA_range) %>%
   mutate(DIC = DIC*10^6)
 ```
 
-#### Plot the range, overlay your data
-```{r, warning=FALSE}
-# Plot using ggplot
-pp_pco2 <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z=pCO2)) +
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(seacarb)
+library(paletteer)
+library(geomtextpath)
+
+# Filter for actual + ideal
+alk_subset <- alk_dat %>%
+  filter(type %in% c("Actual", "Ideal"))
+
+# Filter for carbonate-only types
+alk_alt <- alk_dat %>%
+  filter(type %in% c("Na2CO3 Only", "NaHCO3 Only"))
+
+
+# Base plot settings
+combined_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
   geom_raster(interpolate = TRUE) +
-  scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) + # 
-  geom_contour(
-               color = "black", alpha = 0.7, linewidth = 0.6,
-               breaks =  c(25,100, 400, 1000, 5000)) +
-  # adds pCO2 labels
-  geom_textcontour(
-                   breaks =  c(25,100,400, 1000, 5000),
-                   size = 4, spacing=2.5, gap=TRUE,
-                   remove_long = TRUE,
-                   vjust=0, hjust=0.4) +
-  geom_point(data = alk_dat, aes(DIC, ALK),
-             color="darkred", size=3, inherit.aes = F) +
-  facet_wrap(~type, scales = "free") + 
-  scale_x_continuous(expand = c(0,0)) +
-  scale_y_continuous(expand = c(0,0)) +
-  coord_cartesian(ylim = c(2000, 7000), xlim = c(2000, 6000)) +
+  scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) +
+  geom_contour(color = "black", alpha = 0.7, linewidth = 0.6,
+               breaks = c(25, 100, 400, 1000, 5000)) +
+  geom_textcontour(breaks = c(25, 100, 400, 1000, 5000),
+                   size = 4, spacing = 2.5, gap = TRUE,
+                   remove_long = TRUE, vjust = 0, hjust = 0.4) +
+  geom_point(data = alk_subset,
+             aes(DIC, TA, shape = type), color = "black", size = 3,
+             inherit.aes = FALSE) +
+  scale_shape_manual(values = c("Actual" = 8, "Ideal" = 16)) +
+  coord_cartesian(xlim = c(2000, 6000), ylim = c(2000, 7000)) +
+  labs(x = expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
+       y = expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
+       fill = "pH", shape = "Type") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 14))
+
+# Alt dosing types plot
+alt_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) +
+  geom_contour(color = "black", alpha = 0.7, linewidth = 0.6,
+               breaks = c(25, 100, 400, 1000, 5000)) +
+  geom_textcontour(breaks = c(25, 100, 400, 1000, 5000),
+                   size = 4, spacing = 2.5, gap = TRUE,
+                   remove_long = TRUE, vjust = 0, hjust = 0.4) +
+  geom_point(data = alk_alt,
+             aes(DIC, TA), color = "black", size = 3,
+             inherit.aes = FALSE) +
+  facet_wrap(~type, ncol = 1) +
+  coord_cartesian(xlim = c(2000, 6000), ylim = c(2000, 7000)) +
   labs(x = expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
        y = expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
        fill = "pH") +
   theme_minimal() +
-  theme_minimal() + 
-  theme(strip.placement = "inside",
-        strip.text.x.top =  element_text(angle = 0,size=12))
+  theme(strip.text = element_text(size = 12))
 
+combined_plot <- combined_plot + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+alt_plot <- alt_plot + theme(axis.title.x = element_blank())
+
+alt_plot
+combined_plot
+# Combine panels
+pp_pco2 <- ggarrange(
+  alt_plot +
+     theme(legend.position = "none"),
+  combined_plot,
+  labels = c("a", "b"),
+  widths = c(1.1, 1.4),
+  ncol = 2,
+  align = "h"
+)
+
+pp_pco2 <- annotate_figure(
+  pp_pco2,  # use the name you already defined
+  bottom = text_grob(
+    expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
+    size = 11
+  )
+)
+# Print final figure
 pp_pco2
-ggsave('./pp-pCO2_kenzie.tiff',
+
+ggsave('./pp-pco2_kenzie.tiff',
        dpi = 600,
        width = 6,
        height = 5,
        units = "in",
        device = "tiff",
        compression = "lzw")
-
 ```
 
 Calculate percent increase in growth between controls and different treatments 
@@ -1691,4 +1808,56 @@ ggsave("figureS1.pdf", plot = pp_pco2,
        width = 8, height = 7, units = "in", dpi = 600)
 
 ```
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+library(patchwork)
+
+theme_present <- function(fontSize = 16) {
+  theme_few(base_size = fontSize, base_family = "Palatino") %+replace%
+    theme(
+      plot.background   = element_rect(fill = NA, colour = NA),
+      panel.background  = element_rect(fill = NA, colour = NA),
+      panel.grid.major  = element_blank(),
+      panel.grid.minor  = element_blank(),
+     # panel.border      = element_blank(),
+      legend.background = element_rect(fill = NA, colour = NA),
+      legend.box.background = element_rect(fill = NA, colour = NA),
+      legend.key        = element_rect(fill = NA, colour = NA),
+      strip.background  = element_rect(fill = NA, colour = NA)
+    )
+}
+
+bw_boxsum_t <- bw_boxsum + theme_present(25) + theme(legend.position = "none")
+bw_scat_t   <- bw_scat   + theme_present(25)
+
+# Arrange with patchwork
+bw_summary_plot_pw <- bw_boxsum_t | bw_scat_t
+bw_summary_plot_pw <- bw_summary_plot_pw +
+  plot_layout(widths = c(2,4), guides = "collect") +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.background = element_rect(fill = NA, colour = NA))
+
+# Save: SVG (best for PPT) or PNG (alpha)
+ggsave("bw_transparent.svg",
+       plot = bw_summary_plot_pw,
+       width = 16, height = 10, units = "in",
+       bg = "transparent",
+       device = svglite::svglite)
+
+ggsave("bw_transparent.png",
+       plot = bw_summary_plot_pw,
+       width = 16, height = 10, units = "in", dpi = 300,
+       bg = "transparent",
+       device = ragg::agg_png)
+l.border      = element_blank(),
+      l
+
+
+```
+
+
+
+
 
