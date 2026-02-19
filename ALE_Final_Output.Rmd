@@ -1064,8 +1064,11 @@ ggsave(plot = tmt_plot,
 
 ```
 
+#### Percent change plots
+
 ```{r}
 library(janitor)
+library(ggplot2)
 bw_mass <- read.csv("data2/bwMass - Sheet1.csv") |> 
   clean_names() |> 
   mutate(date = as.Date(date, format = "%m/%d/%Y")) |> 
@@ -1087,7 +1090,11 @@ bw_mass <- bw_mass |>
 ggplot(data = bw_mass,
        mapping = aes(x = date, y = percent_change, group = coral, color = treatment)) +
   geom_point() +
-  geom_line()
+  geom_line(alpha = 0.4) +
+  stat_summary(aes(group = treatment),
+                fun = mean,
+                geom = "line",
+                linewidth = 1.3)
 
 
   
@@ -1684,7 +1691,7 @@ combined_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
   theme(strip.text = element_text(size = 14))
 
 # Alt dosing types plot
-alt_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
+carbonate_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
   geom_raster(interpolate = TRUE) +
   scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) +
   geom_contour(color = "black", alpha = 0.7, linewidth = 0.6,
@@ -1692,32 +1699,70 @@ alt_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
   geom_textcontour(breaks = c(25, 100, 400, 1000, 5000),
                    size = 4, spacing = 2.5, gap = TRUE,
                    remove_long = TRUE, vjust = 0, hjust = 0.4) +
-  geom_point(data = alk_alt,
+  geom_point(data = alk_alt |> dplyr::filter(type == "Na2CO3 Only"),
              aes(DIC, TA), color = "black", size = 3,
              inherit.aes = FALSE) +
-  facet_wrap(~type, ncol = 1) +
+ # facet_wrap(~type, ncol = 1) +
   coord_cartesian(xlim = c(2000, 6000), ylim = c(2000, 7000)) +
   labs(x = expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
        y = expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
-       fill = "pH") +
+       fill = "pH",
+       title = "Na2CO3 Only") +
   theme_minimal() +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text = element_text(size = 12),
+        plot.title = element_text(size = 12, face = "bold", hjust = 0.5)) 
+
+bicarbonate_plot <- ggplot(dat, aes(x = DIC, y = TA, fill = pH, z = pCO2)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_gradientn(colours = paletteer::paletteer_c("grDevices::rainbow", 7)) +
+  geom_contour(color = "black", alpha = 0.7, linewidth = 0.6,
+               breaks = c(25, 100, 400, 1000, 5000)) +
+  geom_textcontour(breaks = c(25, 100, 400, 1000, 5000),
+                   size = 4, spacing = 2.5, gap = TRUE,
+                   remove_long = TRUE, vjust = 0, hjust = 0.4) +
+  geom_point(data = alk_alt |> dplyr::filter(type == "NaHCO3 Only"),
+             aes(DIC, TA), color = "black", size = 3,
+             inherit.aes = FALSE) +
+ # facet_wrap(~type, ncol = 1) +
+  coord_cartesian(xlim = c(2000, 6000), ylim = c(2000, 7000)) +
+  labs(x = expression("Dissolved Inorganic Carbon ("*mu*"mol kg"^{-1}*")"),
+       y = expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
+       fill = "pH",
+       title = "NaHCO3 Only") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 12),
+        plot.title = element_text(size = 12, face = "bold", hjust = 0.5)) 
 
 combined_plot <- combined_plot + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-alt_plot <- alt_plot + theme(axis.title.x = element_blank())
+alt_plot_b <- bicarbonate_plot + theme(axis.title.x = element_blank())
+alt_plot_c <- carbonate_plot + theme(axis.title.x = element_blank())
 
-alt_plot
-combined_plot
+
 # Combine panels
-pp_pco2 <- ggarrange(
-  alt_plot +
-     theme(legend.position = "none"),
-  combined_plot,
+left_col <-  ggarrange(
+  alt_plot_c + theme(legend.position = "none",  axis.title.y = element_blank()),
+  alt_plot_b + theme(legend.position = "none",  axis.title.y = element_blank()),
   labels = c("a", "b"),
+  ncol = 1, 
+  align = "v"
+)
+
+left_col <- annotate_figure(
+  left_col,  # use the name you already defined
+  left = text_grob(
+    expression("Total Alkalinity ("*mu*"mol kg"^{-1}*")"),
+    size = 11, rot = 90))
+    
+pp_pco2 <- ggarrange(
+  left_col,
+  combined_plot,
+  labels = c("", "c"),
   widths = c(1.1, 1.4),
   ncol = 2,
   align = "h"
 )
+
+pp_pco2
 
 pp_pco2 <- annotate_figure(
   pp_pco2,  # use the name you already defined
